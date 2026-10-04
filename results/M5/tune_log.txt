@@ -1,0 +1,31 @@
+{'w_app': 0.6, 'tau_accept': 0.7, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.894, 'recall': 0.835, 'wrong_frac': 0.106, 'wrong_switches': 0.225, 'score': 0.622}
+{'w_app': 0.6, 'tau_accept': 0.7, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.895, 'recall': 0.81, 'wrong_frac': 0.105, 'wrong_switches': 0.175, 'score': 0.601}
+{'w_app': 0.6, 'tau_accept': 0.8, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.9, 'recall': 0.775, 'wrong_frac': 0.075, 'wrong_switches': 0.05, 'score': 0.625}
+{'w_app': 0.6, 'tau_accept': 0.8, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.9, 'recall': 0.765, 'wrong_frac': 0.075, 'wrong_switches': 0.05, 'score': 0.615}
+{'w_app': 0.6, 'tau_accept': 0.85, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.9, 'recall': 0.628, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.477}
+{'w_app': 0.6, 'tau_accept': 0.85, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.9, 'recall': 0.627, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.477}
+{'w_app': 0.6, 'tau_accept': 0.9, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.85, 'recall': 0.365, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.215}
+{'w_app': 0.6, 'tau_accept': 0.9, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.4, 'precision': 0.85, 'recall': 0.353, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.203}
+{'w_app': 0.8, 'tau_accept': 0.7, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.889, 'recall': 0.859, 'wrong_frac': 0.111, 'wrong_switches': 0.3, 'score': 0.637}
+{'w_app': 0.8, 'tau_accept': 0.7, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.891, 'recall': 0.83, 'wrong_frac': 0.109, 'wrong_switches': 0.25, 'score': 0.612}
+{'w_app': 0.8, 'tau_accept': 0.8, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.898, 'recall': 0.826, 'wrong_frac': 0.102, 'wrong_switches': 0.2, 'score': 0.623}
+{'w_app': 0.8, 'tau_accept': 0.8, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.9, 'recall': 0.799, 'wrong_frac': 0.1, 'wrong_switches': 0.15, 'score': 0.599}
+{'w_app': 0.8, 'tau_accept': 0.85, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.899, 'recall': 0.698, 'wrong_frac': 0.101, 'wrong_switches': 0.05, 'score': 0.496}
+{'w_app': 0.8, 'tau_accept': 0.85, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.9, 'recall': 0.658, 'wrong_frac': 0.1, 'wrong_switches': 0.05, 'score': 0.458}
+{'w_app': 0.8, 'tau_accept': 0.9, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.9, 'recall': 0.502, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.352}
+{'w_app': 0.8, 'tau_accept': 0.9, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.2, 'precision': 0.9, 'recall': 0.486, 'wrong_frac': 0.075, 'wrong_switches': 0.025, 'score': 0.336}
+{'w_app': 0.9, 'tau_accept': 0.7, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.878, 'recall': 0.86, 'wrong_frac': 0.122, 'wrong_switches': 0.5, 'score': 0.615}
+{'w_app': 0.9, 'tau_accept': 0.7, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.877, 'recall': 0.832, 'wrong_frac': 0.123, 'wrong_switches': 0.475, 'score': 0.586}
+{'w_app': 0.9, 'tau_accept': 0.8, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.896, 'recall': 0.821, 'wrong_frac': 0.104, 'wrong_switches': 0.225, 'score': 0.614}
+{'w_app': 0.9, 'tau_accept': 0.8, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.899, 'recall': 0.782, 'wrong_frac': 0.101, 'wrong_switches': 0.15, 'score': 0.581}
+{'w_app': 0.9, 'tau_accept': 0.85, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.899, 'recall': 0.723, 'wrong_frac': 0.101, 'wrong_switches': 0.2, 'score': 0.52}
+{'w_app': 0.9, 'tau_accept': 0.85, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.9, 'recall': 0.66, 'wrong_frac': 0.1, 'wrong_switches': 0.125, 'score': 0.46}
+{'w_app': 0.9, 'tau_accept': 0.9, 'tau_reacquire': 0.85, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.9, 'recall': 0.563, 'wrong_frac': 0.1, 'wrong_switches': 0.075, 'score': 0.363}
+{'w_app': 0.9, 'tau_accept': 0.9, 'tau_reacquire': 0.9, 'tau_high': 0.88, 'w_motion': 0.1, 'precision': 0.9, 'recall': 0.559, 'wrong_frac': 0.1, 'wrong_switches': 0.075, 'score': 0.359}
+best:
+     w_app  tau_accept  tau_reacquire  tau_high  w_motion  precision    recall  wrong_frac  wrong_switches     score
+8     0.8         0.7           0.85      0.88       0.2   0.889310  0.858504    0.110690           0.300  0.637124
+2     0.6         0.8           0.85      0.88       0.4   0.899948  0.775134    0.075052           0.050  0.625030
+10    0.8         0.8           0.85      0.88       0.2   0.898456  0.826171    0.101544           0.200  0.623083
+0     0.6         0.7           0.85      0.88       0.4   0.893747  0.834738    0.106253           0.225  0.622233
+3     0.6         0.8           0.90      0.88       0.4   0.899948  0.765350    0.075052           0.050  0.615246

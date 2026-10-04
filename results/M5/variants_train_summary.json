@@ -1,0 +1,60 @@
+{
+ "seeds": [
+  0,
+  99
+ ],
+ "memory_cfg": {
+  "variant": "M2",
+  "w_app": 0.6,
+  "w_motion": 0.4,
+  "top_k": 3,
+  "tau_accept": 0.8,
+  "tau_reacquire": 0.85,
+  "lost_after_s": 0.5,
+  "tau_high": 0.88,
+  "motion_min": 0.5,
+  "isolation_m": 1.0,
+  "novelty_cos": 0.95,
+  "max_size": 20,
+  "sigma_min": 0.3,
+  "sigma_growth": 0.5
+ },
+ "summary": [
+  {
+   "variant": "M0",
+   "precision": 0.9155572822759879,
+   "recall": 0.8599514928893403,
+   "wrong_frac": 0.08444271772401209,
+   "wrong_switches": 0.82,
+   "mem_size": 1.0,
+   "wrong_at_end": 0.09
+  },
+  {
+   "variant": "M1",
+   "precision": 0.9435847384790483,
+   "recall": 0.8145821912760819,
+   "wrong_frac": 0.04641526152095174,
+   "wrong_switches": 0.09,
+   "mem_size": 1.0,
+   "wrong_at_end": 0.01
+  },
+  {
+   "variant": "M2",
+   "precision": 0.9341856613726012,
+   "recall": 0.8156969194121767,
+   "wrong_frac": 0.05581433862739884,
+   "wrong_switches": 0.13,
+   "mem_size": 4.01,
+   "wrong_at_end": 0.0
+  },
+  {
+   "variant": "M3",
+   "precision": 0.9209740927251818,
+   "recall": 0.8499857936307629,
+   "wrong_frac": 0.06902590727481825,
+   "wrong_switches": 0.27,
+   "mem_size": 19.79,
+   "wrong_at_end": 0.01
+  }
+ ]
+}

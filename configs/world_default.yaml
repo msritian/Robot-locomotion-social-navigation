@@ -115,3 +115,44 @@ tracker:
   min_meas_sigma: 0.01          # floor on measurement sigma (keeps the KF well-posed at noise_scale 0)
   swap_dist: 0.6                # injected ID swaps when two people are closer than this (true distance)
   swap_p: 0.2                   # per step, scaled by noise_scale
+
+memory:                 # Section 6 (Idea 4a). Thresholds are tuned on TRAINING seeds only (see PROGRESS.md).
+  variant: M2           # M0 tracker-ID only | M1 fixed | M2 gated continual (proposed) | M3 ungated
+  w_app: 0.6
+  w_motion: 0.4
+  top_k: 3
+  tau_accept: 0.80      # tuned on train seeds 0-39 (results/M5/tune.csv)
+  tau_reacquire: 0.85   # stricter appearance check when re-acquiring after loss (tuned)
+  lost_after_s: 0.5     # target "lost" (search mode) after this long unseen
+  tau_high: 0.88        # M2: add only if s_app > tau_high ... (tuned)
+  motion_min: 0.5       # ... and s_motion > motion_min (motion-consistent) ...
+  isolation_m: 1.0      # ... and no other track within 1.0 m ...
+  novelty_cos: 0.95     # ... and cos < 0.95 to every stored embedding
+  max_size: 20
+  sigma_min: 0.3        # minimum sigma of the motion likelihood (m)
+  sigma_growth: 0.5     # m/s growth of the fallback sigma with time since last seen
+
+dwa:                    # Section 8.1 shared local planner (same for every controller)
+  n_vx: 7
+  n_vy: 5
+  n_wz: 9
+  window_s: 1.0         # sample commands within +-(accel limit * window_s) of the current velocity
+  horizon_s: 1.5
+  w_goal: 1.0
+  w_clear: 0.6
+  clear_soft: 0.5       # m: clearance (beyond body radius) below which the obstacle cost grows
+  w_social: 3.0         # personal-space cost for non-target people
+  social_soft: 0.5      # penalty inside 0.5 m (center distance)
+  social_hard: 0.3      # strong penalty inside 0.3 m (x10)
+  w_smooth: 0.15
+  w_heading: 0.6        # keep the look point inside the FOV
+  collide_margin: 0.03  # hard reject if obstacle clearance < radius + margin
+  person_collide: 0.50  # hard reject if center distance to any person < this (metric threshold 0.45)
+  local_res: 0.1        # local obstacle grid (odom frame) built from depth rays
+  local_size: 60.0      # m, square, centered on the start pose
+  local_window: 4.0     # m, half-size of the clearance window around the robot
+follow:
+  distance: 1.5         # follow point: 1.5 m behind the target along its walking direction
+  band: [1.0, 3.0]
+  min_walk_speed: 0.15  # below this, "walking direction" = direction from robot to target
+  delta_s: 1.0          # C1 look-ahead (tuned on training seeds)
