@@ -1,0 +1,13 @@
+k1_walker contains material from Booster Robotics (Apache License 2.0, see LICENSE-booster-apache-2.0):
+
+- k1_walker/booster_actuator.py: verbatim copy of booster_train/assets/robots/actuator.py
+  (BoosterRobotics/booster_train @ 8bb5b53824e0fbcfe69a5cb78a81f4bddb3e2a6e).
+- k1_walker/k1_cfg.py: actuator grouping, joint motor models and initial state follow
+  booster_train/assets/robots/booster_k1.py (same commit); the WALKING default joint pose, PD gains and
+  effort limits are the values of Booster's K1 walking controller in
+  BoosterRobotics/booster_deploy @ 7bb1462e2ac742eba5c01659b815e2e99fbe617f
+  (tasks/locomotion/robots/k1/__init__.py, K1WalkControllerCfg), also Apache 2.0.
+
+Robot description: BoosterRobotics/booster_assets @ 12a97516 (BSD-3-Clause), robots/K1/K1_22dof.urdf.
+The task structure follows Isaac Lab's manager-based velocity tasks (BSD-3-Clause).
+Copyright of the original files remains with their authors.

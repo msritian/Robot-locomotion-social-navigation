@@ -25,7 +25,7 @@ step "Isaac Lab headless train: Isaac-Velocity-Flat-H1-v0, 512 envs, 5 iteration
 cd "$_CONDOR_SCRATCH_DIR"
 t0=$(date +%s)
 timeout 2400 $PY $LAB/scripts/reinforcement_learning/rsl_rl/train.py \
-  --task Isaac-Velocity-Flat-H1-v0 --num_envs 512 --max_iterations 5 --headless
+  --task Isaac-Velocity-Flat-H1-v0 --num_envs 256 --max_iterations 5 --headless
 echo "train exit=$? seconds=$(( $(date +%s) - t0 ))"
 cp -r logs "$OUT/isaaclab_logs" 2>/dev/null || true
 
