@@ -11,7 +11,7 @@ rsync -az --delete \
   --exclude '.git/' --exclude '.venv/' --exclude '__pycache__/' --exclude '*.egg-info/' \
   --exclude '.pytest_cache/' --exclude 'results/' --exclude 'videos/' --exclude 'models/' \
   --exclude 'cluster/cluster.env' --exclude 'logs/' --exclude 'outputs/' \
-  --exclude 'cluster/jobs/out/' \
+  --exclude 'cluster/jobs/' \
   "$REPO_ROOT/" "$REMOTE:$REMOTE_WORKDIR/"
 log "done. Remote tree:"
 rsh "cd '$REMOTE_WORKDIR' && ls"
