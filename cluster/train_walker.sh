@@ -47,20 +47,11 @@ if [ "$done_iters" -lt "$((TOTAL - 2))" ]; then   # rsl_rl names its final check
   fi
 fi
 
-# ---- final: export the newest checkpoint (TorchScript + ONNX via Isaac Lab play.py) and package results
+# ---- final: export the newest checkpoint to TorchScript (actor + obs normalizer) and package results
 latest=$(ls -1 $LOGROOT/*/model_*.pt | awk -F'model_|\\.pt' '{print $(NF-1)" "$0}' | sort -n | tail -1 | awk '{print $2}')
 echo "[train_walker] exporting $latest"
-timeout 1200 $PY k1_walker/scripts/play.py --task K1-Velocity-Flat-Play-v0 --headless --num_envs 4 \
-    --checkpoint "$latest" --video_length 1 2>&1 | grep -vE "Extensions config" | tail -20 &
-PLAYPID=$!
-# play.py runs forever after exporting; stop it once the export exists
-for i in $(seq 1 120); do
-  [ -f "$(dirname "$latest")/exported/policy.pt" ] && break
-  sleep 5
-done
-kill $PLAYPID 2>/dev/null; pkill -f play.py 2>/dev/null
-cp "$(dirname "$latest")/exported/policy.pt" out/k1_walker.pt 2>/dev/null || echo "WARN: export missing"
-cp "$(dirname "$latest")/exported/policy.onnx" out/k1_walker.onnx 2>/dev/null || true
+mkdir -p out
+$PY k1_walker/scripts/export_policy.py "$latest" out/k1_walker.pt 2>&1 | tail -2
 cp "$latest" out/
 cp -r "$(dirname "$latest")/params" out/params 2>/dev/null || true
 tar -czf walker_logs.tar.gz logs

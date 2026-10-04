@@ -29,7 +29,7 @@ while true; do
   sleep $POLL
 done
 # ---- 2. export -> submit walker eval + showcase jobs
-q "cd ~/k1-follow/cluster && tar -xzf jobs/out/walker_export_$TRAIN.tar.gz -C jobs/ out/k1_walker.pt && mv jobs/out/k1_walker.pt jobs/k1_walker.pt && ls -la jobs/k1_walker.pt" >/dev/null \
+q "cd ~/k1-follow/cluster && { [ -f jobs/k1_walker.pt ] || { tar -xzf jobs/out/walker_export_$TRAIN.tar.gz -C jobs/ out/k1_walker.pt && mv jobs/out/k1_walker.pt jobs/k1_walker.pt; }; } && ls -la jobs/k1_walker.pt" >/dev/null \
   || { echo "STOP: could not extract exported walker from walker_export_$TRAIN.tar.gz"; exit 1; }
 submit() { q "cd ~/k1-follow/cluster && condor_submit $* | grep -oE 'cluster [0-9]+' | grep -oE '[0-9]+'"; }
 JOBS="$(submit submit_walker_eval.sub)"
