@@ -28,11 +28,17 @@ if [ "$done_iters" -lt "$((TOTAL - 1))" ]; then
   if [ -n "${ckpt:-}" ]; then
     extra=(--resume --load_run "$(basename "$(dirname "$ckpt")")" --checkpoint "$(basename "$ckpt")")
   fi
-  t0=$(date +%s)
-  $PY k1_walker/scripts/train.py --task K1-Velocity-Flat-v0 --headless --num_envs "$NUM_ENVS" \
-      --max_iterations "$n" --seed 42 "${extra[@]}" 2>&1 | grep -vE "Extensions config|^\s*$"
-  rc=${PIPESTATUS[0]}
-  echo "[train_walker] chunk exit=$rc seconds=$(( $(date +%s) - t0 ))"
+  for attempt in 1 2 3; do
+    t0=$(date +%s)
+    $PY k1_walker/scripts/train.py --task K1-Velocity-Flat-v0 --headless --num_envs "$NUM_ENVS" \
+        --max_iterations "$n" --seed 42 "${extra[@]}" 2>&1 | grep -vE "Extensions config|^\s*$|crashreporter-breakpad.plugin\] \[crash\]  "
+    rc=${PIPESTATUS[0]}
+    dt=$(( $(date +%s) - t0 ))
+    echo "[train_walker] chunk exit=$rc seconds=$dt attempt=$attempt"
+    # crash during Kit startup (seen once: segfault in XOpenDisplay on one node): retry
+    if [ "$rc" -ne 0 ] && [ "$dt" -lt 120 ]; then sleep 20; continue; fi
+    break
+  done
   if [ "$rc" -ne 0 ]; then exit "$rc"; fi
   latest_after=$(ls -1 $LOGROOT/*/model_*.pt 2>/dev/null | awk -F'model_|\\.pt' '{print $(NF-1)}' | sort -n | tail -1)
   if [ "${latest_after:-0}" -lt "$((TOTAL - 1))" ]; then

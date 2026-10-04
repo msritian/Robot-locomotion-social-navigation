@@ -253,8 +253,8 @@ for kb in range(n_brain):
         if args.video and (kb * SUB + s) % max(1, round(50 / args.fps)) == 0:
             rp, _ = robot_pose2d()
             eye, tgt, eye_s = chase_eye_target(rp, eye_s)
-            chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device),
-                                                torch.tensor([tgt], device=env.device))
+            chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device, dtype=torch.float32),
+                                                torch.tensor([tgt], device=env.device, dtype=torch.float32))
             frames["chase"].append(chase_cam.data.output["rgb"][0, ..., :3].cpu().numpy())
             frames["head"].append(overlay.draw(head_cam.data.output["rgb"][0, ..., :3].cpu().numpy(), bobs, brain,
                                                w.robot.odom, ti, cam_z))

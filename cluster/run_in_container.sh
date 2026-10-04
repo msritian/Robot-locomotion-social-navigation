@@ -8,6 +8,8 @@ SCRATCH="${_CONDOR_SCRATCH_DIR:-$PWD}"
 export HOME="$SCRATCH/home"
 mkdir -p "$HOME" /tmp/kit/cache /tmp/kit/data /tmp/kit/logs
 export ACCEPT_EULA=Y OMNI_KIT_ACCEPT_EULA=YES PRIVACY_CONSENT=Y PYTHONUNBUFFERED=1
+# headless only: a stray DISPLAY on some execute nodes makes Kit segfault in XOpenDisplay at startup
+unset DISPLAY XAUTHORITY
 
 echo "[run_in_container] host=$(hostname) date=$(date -Is)"
 nvidia-smi --query-gpu=name,driver_version,memory.total --format=csv,noheader || echo "WARN: nvidia-smi failed"
