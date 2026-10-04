@@ -1,0 +1,10 @@
+# E4: how far ahead should C1 aim? C1 + P2 + M2 + S1 with delta in {0, 0.5, 1.0, 1.5} s.
+id: E4
+question: delta ablation
+scenarios: [T1, T2, T7]
+seeds: {start: 1000, n: 50}
+methods:
+  - {name: "delta=0.0", controller: C1, predictor: P2, memory: M2, search: S1, delta: 0.0}
+  - {name: "delta=0.5", controller: C1, predictor: P2, memory: M2, search: S1, delta: 0.5}
+  - {name: "delta=1.0", controller: C1, predictor: P2, memory: M2, search: S1, delta: 1.0}
+  - {name: "delta=1.5", controller: C1, predictor: P2, memory: M2, search: S1, delta: 1.5}

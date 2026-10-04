@@ -1,0 +1,23 @@
+# Batch build of the Isaac Lab + K1 Apptainer image on a CHTC build node.
+# Submit from $REMOTE_WORKDIR/cluster on the access point:   condor_submit build_container.sub
+# The finished .sif (~15-20 GB) is written straight to /staging (file:// is the CHTC method for >30 GB-class files).
+universe = vanilla
++IsBuildJob = true
+requirements = (OpSysMajorVer =?= 9) && (HasCHTCStaging == true)
+
+executable = build_container.sh
+transfer_input_files =
+transfer_output_files = isaaclab-2.3.2-k1.sif, build_meta.txt
+transfer_output_remaps = "isaaclab-2.3.2-k1.sif = file:///staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif; build_meta.txt = jobs/out/build_meta.txt"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+log = jobs/out/build.log
+output = jobs/out/build.out
+error = jobs/out/build.err
+
+request_cpus = 8
+request_memory = 32GB
+request_disk = 150GB
+
+queue

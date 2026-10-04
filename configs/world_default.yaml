@@ -1,0 +1,158 @@
+# Stage C world defaults (PROJECT_SPEC Section 4).
+# Every value marked "assumption" is listed in ASSUMPTIONS.md.
+
+sim:
+  dt: 0.1               # 10 Hz control
+  episode_s: 60.0
+  grid_res: 0.05        # occupancy grid resolution (m)
+
+robot:                  # Section 4.3: K1 stand-in, ALL ASSUMED until replaced by configs/walker_response.yaml (M10)
+  vx_range: [-0.2, 0.5]
+  vy_range: [-0.2, 0.2]
+  wz_range: [-1.0, 1.0]
+  tau: 0.4              # first-order lag time constant (s), same for all axes
+  latency: 0.1          # command latency (s)
+  acc_lin: 0.5          # m/s^2
+  acc_ang: 2.0          # rad/s^2
+  radius: 0.20
+  camera_height: 0.85
+  fov_deg: 90.0
+  cam_range: [0.3, 8.0]
+  sway_lat: 0.02        # m, lateral camera sway amplitude
+  sway_yaw_deg: 2.0     # deg, yaw sway amplitude
+  sway_hz: 1.5
+  odom_scale_sigma: 0.01        # 1% of distance traveled (per-episode systematic scale error)
+  odom_yaw_per_m_deg: 0.5       # yaw random walk: 0.5 deg std per sqrt(meter) traveled (see ASSUMPTIONS A-ROB-ODOM)
+  odom_step_sigma: 0.002        # small extra per-step white noise on increments (fraction of step distance)
+
+people:
+  radius: 0.25
+  target_speed: [0.25, 0.45]
+  other_speed: [0.4, 1.0]
+  pause_s: [1.0, 5.0]
+  plan_inflation: 0.30          # A* on grid inflated by 0.3 m
+  plan_res: 0.10                # A* runs on a 0.1 m grid (downsampled, conservative)
+  lookahead: 0.30               # carrot distance along the path (m)
+  tau_vel: 0.5                  # relaxation time toward desired velocity (s)
+  max_speed_factor: 1.3         # |v| <= factor * preferred speed
+  # social force (Helbing-style, simplified)
+  agent_A: 1.2
+  agent_B: 0.30
+  agent_range: 2.0
+  wall_A: 2.0
+  wall_B: 0.10
+  wall_range: 0.60
+  robot_A: 2.0                  # minimal repulsion from the robot (only to avoid overlap)
+  robot_B: 0.05
+  stuck_replan_s: 4.0
+  # synthetic head cue (Section 4.4)
+  lead_turn_deg: 30.0
+  lead_s: [0.3, 0.8]
+  glance_rate_hz: 0.1
+  glance_deg: [30.0, 70.0]
+  glance_s: [0.5, 1.0]
+  head_rate: 6.0                # rad/s max head rotation speed
+  body_rate: 3.0                # rad/s max body heading rotation speed
+  body_smooth: 0.5              # low-pass factor on the walking direction
+
+appearance:
+  dim: 32
+  view_scale: 0.4
+  noise_sigma: 0.15
+  # "total": noise vector has expected norm sigma (per-component sigma/sqrt(dim)).
+  # "per_component": each component has std sigma. See ASSUMPTIONS.md (A-APP-1).
+  noise_convention: total
+  view_harmonics: 2
+  lookalike_cos: [0.85, 0.95]
+
+maps:
+  wall_thickness: 0.15
+  office:
+    n_rooms: [3, 6]
+    room_w: [3.5, 5.5]
+    room_d: [3.5, 5.0]
+    corridor_w: {train: [1.6, 2.2], test: [1.4, 1.8]}
+    door_w: [0.9, 1.1]
+    desks_per_room: [1, 3]
+  hall:
+    size: [12.0, 20.0]
+    pillar_spacing: [4.0, 6.0]
+    pillar_size: [0.4, 0.6]
+    pillar_keep_p: 0.7
+    clusters: {train: [2, 5], test: [4, 7]}
+  loop:
+    outer_x: [10.0, 18.0]
+    outer_y: [8.0, 14.0]
+    corridor_w: {train: [1.6, 2.0], test: [1.4, 1.6]}
+    figure8_p: 0.4
+  test_seed_start: 1000
+
+perception:             # Section 5 ("people as numbers"); every sigma/rate is multiplied by noise_scale
+  noise_scale: 1.0      # {0, 0.5, 1, 2}; 0 = oracle perception
+  p_det_near: 0.95
+  near_m: 3.0
+  p_det_far: 0.70
+  far_m: 8.0
+  partial_occ_margin: 0.10      # LOS within 0.1 m of another person's circle -> partial occlusion
+  partial_occ_factor: 0.6
+  pos_sigma0: 0.05              # sigma = 0.05 + 0.03 * distance (m), robot frame
+  pos_sigma_k: 0.03
+  body_heading_sigma_deg: 10.0
+  head_yaw_sigma_deg: 15.0
+  head_nan_p: 0.05
+  app_extra_sigma: 0.05
+  fp_rate: 0.05                 # Poisson mean per step
+  n_depth_rays: 32
+  depth_sigma0: 0.02
+  depth_sigma_k: 0.01
+
+tracker:
+  confirm_hits: 2               # new track after 2 consecutive detections
+  delete_after_s: 1.0
+  gate_chi2: 9.21               # 99% gate, 2 DoF Mahalanobis
+  q_acc: 1.0                    # process noise (white acceleration std, m/s^2)
+  init_vel_sigma: 1.0
+  min_meas_sigma: 0.01          # floor on measurement sigma (keeps the KF well-posed at noise_scale 0)
+  swap_dist: 0.6                # injected ID swaps when two people are closer than this (true distance)
+  swap_p: 0.2                   # per step, scaled by noise_scale
+
+memory:                 # Section 6 (Idea 4a). Thresholds are tuned on TRAINING seeds only (see PROGRESS.md).
+  variant: M2           # M0 tracker-ID only | M1 fixed | M2 gated continual (proposed) | M3 ungated
+  w_app: 0.6
+  w_motion: 0.4
+  top_k: 3
+  tau_accept: 0.80      # tuned on train seeds 0-39 (results/M5/tune.csv)
+  tau_reacquire: 0.85   # stricter appearance check when re-acquiring after loss (tuned)
+  lost_after_s: 0.5     # target "lost" (search mode) after this long unseen
+  tau_high: 0.88        # M2: add only if s_app > tau_high ... (tuned)
+  motion_min: 0.5       # ... and s_motion > motion_min (motion-consistent) ...
+  isolation_m: 1.0      # ... and no other track within 1.0 m ...
+  novelty_cos: 0.95     # ... and cos < 0.95 to every stored embedding
+  max_size: 20
+  sigma_min: 0.3        # minimum sigma of the motion likelihood (m)
+  sigma_growth: 0.5     # m/s growth of the fallback sigma with time since last seen
+
+dwa:                    # Section 8.1 shared local planner (same for every controller)
+  n_vx: 7
+  n_vy: 5
+  n_wz: 9
+  window_s: 1.0         # sample commands within +-(accel limit * window_s) of the current velocity
+  horizon_s: 1.5
+  w_goal: 1.0
+  w_clear: 0.6
+  clear_soft: 0.5       # m: clearance (beyond body radius) below which the obstacle cost grows
+  w_social: 3.0         # personal-space cost for non-target people
+  social_soft: 0.5      # penalty inside 0.5 m (center distance)
+  social_hard: 0.3      # strong penalty inside 0.3 m (x10)
+  w_smooth: 0.15
+  w_heading: 0.6        # keep the look point inside the FOV
+  collide_margin: 0.03  # hard reject if obstacle clearance < radius + margin
+  person_collide: 0.50  # hard reject if center distance to any person < this (metric threshold 0.45)
+  local_res: 0.1        # local obstacle grid (odom frame) built from depth rays
+  local_size: 60.0      # m, square, centered on the start pose
+  local_window: 4.0     # m, half-size of the clearance window around the robot
+follow:
+  distance: 1.5         # follow point: 1.5 m behind the target along its walking direction
+  band: [1.0, 3.0]
+  min_walk_speed: 0.15  # below this, "walking direction" = direction from robot to target
+  delta_s: 0.5          # C1 look-ahead, tuned on training seeds 0-29 of T1/T2/T7 (results/M7/tune_delta_train.csv)
