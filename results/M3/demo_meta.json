@@ -1,0 +1,183 @@
+{
+ "maps": [
+  {
+   "family": "office",
+   "seed": 0,
+   "split": "train",
+   "size": [
+    19.1,
+    9.45
+   ],
+   "n_pois": 24,
+   "n_rooms": 6,
+   "corridor_w": 1.762,
+   "attempt": 0
+  },
+  {
+   "family": "office",
+   "seed": 1,
+   "split": "train",
+   "size": [
+    13.25,
+    11.45
+   ],
+   "n_pois": 18,
+   "n_rooms": 4,
+   "corridor_w": 2.17,
+   "attempt": 0
+  },
+  {
+   "family": "office",
+   "seed": 1000,
+   "split": "test",
+   "size": [
+    12.2,
+    10.3
+   ],
+   "n_pois": 13,
+   "n_rooms": 3,
+   "corridor_w": 1.642,
+   "attempt": 0
+  },
+  {
+   "family": "office",
+   "seed": 1001,
+   "split": "test",
+   "size": [
+    16.25,
+    10.6
+   ],
+   "n_pois": 21,
+   "n_rooms": 6,
+   "corridor_w": 1.406,
+   "attempt": 0
+  },
+  {
+   "family": "hall",
+   "seed": 0,
+   "split": "train",
+   "size": [
+    19.12,
+    16.46
+   ],
+   "n_pois": 12,
+   "n_clusters": 3,
+   "pillar_spacing": 5.6,
+   "attempt": 0
+  },
+  {
+   "family": "hall",
+   "seed": 1,
+   "split": "train",
+   "size": [
+    14.65,
+    16.9
+   ],
+   "n_pois": 12,
+   "n_clusters": 5,
+   "pillar_spacing": 5.02,
+   "attempt": 0
+  },
+  {
+   "family": "hall",
+   "seed": 1000,
+   "split": "test",
+   "size": [
+    17.36,
+    12.56
+   ],
+   "n_pois": 12,
+   "n_clusters": 5,
+   "pillar_spacing": 4.65,
+   "attempt": 0
+  },
+  {
+   "family": "hall",
+   "seed": 1001,
+   "split": "test",
+   "size": [
+    13.01,
+    15.44
+   ],
+   "n_pois": 12,
+   "n_clusters": 6,
+   "pillar_spacing": 4.66,
+   "attempt": 0
+  },
+  {
+   "family": "loop",
+   "seed": 0,
+   "split": "train",
+   "size": [
+    10.95,
+    10.75
+   ],
+   "n_pois": 11,
+   "outer": [
+    10.65,
+    10.41
+   ],
+   "corridor_w": 1.841,
+   "figure8": true,
+   "attempt": 0
+  },
+  {
+   "family": "loop",
+   "seed": 1,
+   "split": "train",
+   "size": [
+    13.9,
+    10.9
+   ],
+   "n_pois": 11,
+   "outer": [
+    13.59,
+    10.59
+   ],
+   "corridor_w": 1.768,
+   "figure8": true,
+   "attempt": 0
+  },
+  {
+   "family": "loop",
+   "seed": 1000,
+   "split": "test",
+   "size": [
+    14.45,
+    13.8
+   ],
+   "n_pois": 8,
+   "outer": [
+    14.12,
+    13.48
+   ],
+   "corridor_w": 1.467,
+   "figure8": false,
+   "attempt": 0
+  },
+  {
+   "family": "loop",
+   "seed": 1001,
+   "split": "test",
+   "size": [
+    11.3,
+    12.35
+   ],
+   "n_pois": 8,
+   "outer": [
+    10.95,
+    12.03
+   ],
+   "corridor_w": 1.453,
+   "figure8": false,
+   "attempt": 0
+  }
+ ],
+ "gifs": [
+  "results/M3/world_office.gif",
+  "results/M3/world_hall.gif",
+  "results/M3/world_loop.gif"
+ ],
+ "seed": 3,
+ "seconds": 40.0
+}

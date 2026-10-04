@@ -1,0 +1,28 @@
+[project]
+name = "pf"
+version = "0.1.0"
+description = "Person-centric person following for the Booster K1 (Stage C: fast 2D simulator + following brain)"
+requires-python = ">=3.10"
+dependencies = [
+    "numpy",
+    "scipy",
+    "torch",
+    "gymnasium",
+    "stable-baselines3",
+    "pandas",
+    "matplotlib",
+    "imageio",
+    "pyyaml",
+    "tqdm",
+    "pytest",
+]
+
+[build-system]
+requires = ["setuptools>=61"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools.packages.find]
+include = ["pf*"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]

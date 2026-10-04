@@ -218,3 +218,12 @@ __marimo__/
 
 # Streamlit
 .streamlit/secrets.toml
+
+# --- project-specific ---
+.venv/
+cluster/cluster.env
+results/**/raw/
+videos/**/*.mp4
+models/**/*.pt
+!models/k1_walker.pt
+*.sif
