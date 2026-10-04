@@ -1,19 +1,14 @@
 # Stage D: Isaac closed-loop evaluation / showcase videos (PROJECT_SPEC 13.7).
+# Defaults use $(VAR:default) so values given on the condor_submit command line take effect.
 #   condor_submit MODE=quant SCEN=T1,T2,T3,T4,T5,T6,T7 SEED0=1000 N=10 submit_isaac_eval.sub
 #   condor_submit MODE=showcase SCEN=T6 SEED0=1000 N=1 CROWD=10 submit_isaac_eval.sub
-MODE = quant
-SCEN = T7
-SEED0 = 1000
-N = 2
-CROWD = 0
-IGS = none
 universe = container
 container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
 executable = run_in_container.sh
-arguments = bash isaac_eval.sh k1_walker.pt $(MODE) $(SCEN) $(SEED0) $(N) $(CROWD) $(IGS)
+arguments = bash isaac_eval.sh k1_walker.pt $(MODE:quant) $(SCEN:T7) $(SEED0:1000) $(N:2) $(CROWD:0) $(IGS:none)
 transfer_input_files = isaac_eval.sh, jobs/code.tar.gz, jobs/k1_walker.pt, osdf:///chtc/staging/s/smittal39/k1-follow/interiorgs_v1.tar
 transfer_output_files = d_out.tar.gz
-transfer_output_remaps = "d_out.tar.gz = jobs/out/d_out_$(MODE)_$(Cluster).tar.gz"
+transfer_output_remaps = "d_out.tar.gz = jobs/out/d_out_$(MODE:quant)_$(Cluster).tar.gz"
 should_transfer_files = YES
 when_to_transfer_output = ON_EXIT
 log = jobs/out/isaac_eval_$(Cluster).log
