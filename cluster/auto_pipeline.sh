@@ -8,19 +8,21 @@ q() { rsh "$@" 2>/dev/null || { echo "STOP: ssh connection lost (reopen the Cont
 state() { q "s=\$(condor_q $1 -af JobStatus | head -1); [ -n \"\$s\" ] && echo \$s || echo \"done:\$(condor_history $1 -limit 1 -af ExitCode | head -1)\""; }
 tb() { q "grep -c Traceback ~/k1-follow/cluster/jobs/out/$1 2>/dev/null || echo 0" | tail -1; }
 plumb_done=0
+# only NEW tracebacks count (logs keep output from earlier attempts)
+TB_TRAIN0=$(tb train_walker_$TRAIN.out); TB_PLUMB0=$(tb isaac_plumb_$PLUMB.out)
 # ---- 1. wait for training (and keep an eye on the plumbing test)
 while true; do
   t=$(state $TRAIN)
   if [ $plumb_done = 0 ]; then
     p=$(state $PLUMB)
     case "$p" in
-      1|2) [ "$(tb isaac_plumb_$PLUMB.out)" != 0 ] && { echo "STOP: plumbing test traceback (job $PLUMB)"; exit 1; } ;;
+      1|2) [ "$(tb isaac_plumb_$PLUMB.out)" != "$TB_PLUMB0" ] && { echo "STOP: plumbing test traceback (job $PLUMB)"; exit 1; } ;;
       done:0) plumb_done=1 ;;
       *) echo "STOP: plumbing test ended badly: $p (job $PLUMB)"; exit 1 ;;
     esac
   fi
   case "$t" in
-    1|2) [ "$(tb train_walker_$TRAIN.out)" != 0 ] && { echo "STOP: training traceback (job $TRAIN)"; exit 1; } ;;
+    1|2) [ "$(tb train_walker_$TRAIN.out)" != "$TB_TRAIN0" ] && { echo "STOP: training traceback (job $TRAIN)"; exit 1; } ;;
     done:0) break ;;
     *) echo "STOP: training ended badly: $t (job $TRAIN)"; exit 1 ;;
   esac
