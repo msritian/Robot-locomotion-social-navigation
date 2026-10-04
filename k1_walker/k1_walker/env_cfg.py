@@ -167,6 +167,7 @@ class K1FlatEnvCfg(LocomotionVelocityRoughEnvCfg):
         self.rewards.dof_acc_l2.weight = -2.5e-7
         self.rewards.dof_acc_l2.params["asset_cfg"] = LEGS
         self.rewards.action_rate_l2.weight = -0.01
+        self.rewards.action_l2 = RewTerm(func=vmdp.action_l2, weight=-0.002)   # keep actions small (v2)
         self.rewards.undesired_contacts = RewTerm(
             func=vmdp.undesired_contacts, weight=-1.0,
             params={"sensor_cfg": SceneEntityCfg("contact_forces", body_names=NON_FOOT_BODIES), "threshold": 1.0})

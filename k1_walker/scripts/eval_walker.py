@@ -206,4 +206,6 @@ with open(os.path.join(args.out, "walker_eval.json"), "w") as f:
     json.dump(res, f, indent=1)
 np.savez_compressed(os.path.join(args.out, "step_tests.npz"), t=t, v=V, cmd=np.array([r["cmd"] for r in rec]))
 print(json.dumps(res, indent=1))
-app.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes

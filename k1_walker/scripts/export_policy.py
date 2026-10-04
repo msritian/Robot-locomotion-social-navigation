@@ -28,7 +28,7 @@ class Actor(nn.Module):
         self.register_buffer("std", sd["actor_obs_normalizer._std"].clone())
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return self.net((x - self.mean) / (self.std + 1e-2))
+        return torch.clamp(self.net((x - self.mean) / (self.std + 1e-2)), -5.0, 5.0)   # = clip_actions in training
 
 
 if __name__ == "__main__":

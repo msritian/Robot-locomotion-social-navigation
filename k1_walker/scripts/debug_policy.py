@@ -4,6 +4,7 @@ training env (play config) and in the closed-loop follow env?
     python debug_policy.py --checkpoint model_3998.pt --policy k1_walker.pt --headless
 """
 import argparse
+import os
 
 from isaaclab.app import AppLauncher
 
@@ -52,4 +53,6 @@ for name, pol in (("rsl_rl", lambda ob: ref(ob)), ("torchscript", lambda ob: ts(
     cmd = env.unwrapped.command_manager.get_command("base_velocity")[0].tolist()
     print(f"[{name}] 5 s rollout: min trunk z {zmin:.3f}, last cmd {cmd}, "
           f"vel_b {robot.data.root_lin_vel_b[0, :2].tolist()}", flush=True)
-app.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes

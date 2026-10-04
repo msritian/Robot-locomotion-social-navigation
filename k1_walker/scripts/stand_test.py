@@ -69,5 +69,6 @@ res["pass"] = not res["fell"]
 print(json.dumps({k: v for k, v in res.items() if k != "joint_names"}, indent=1))
 with open(os.path.join(args.out, "stand_test.json"), "w") as f:
     json.dump(res, f, indent=1)
-env.close()
-app.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes

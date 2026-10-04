@@ -6,10 +6,12 @@ from isaaclab_rl.rsl_rl import RslRlOnPolicyRunnerCfg, RslRlPpoActorCriticCfg, R
 @configclass
 class K1FlatPPORunnerCfg(RslRlOnPolicyRunnerCfg):
     num_steps_per_env = 24
-    max_iterations = 4000
+    max_iterations = 3000
     save_interval = 100
     experiment_name = "k1_flat"
     obs_groups = {"policy": ["policy"], "critic": ["critic"]}
+    # v1 learned unbounded actions (|a| up to ~500 -> saturated, fragile control); clip to +-5 (= +-1.25 rad targets)
+    clip_actions = 5.0
     policy = RslRlPpoActorCriticCfg(
         init_noise_std=1.0,
         actor_obs_normalization=True,

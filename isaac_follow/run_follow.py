@@ -318,5 +318,6 @@ if args.video:
     title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
              f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
     compose(frames, log, args.fps, os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}{args.scenario}_{args.seed}_{args.method}"), title)
-env.close()
-app.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes
