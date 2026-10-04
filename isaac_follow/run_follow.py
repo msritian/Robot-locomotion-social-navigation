@@ -32,6 +32,7 @@ ap.add_argument("--out", default="follow_out")
 ap.add_argument("--limits", default="", help="walker_response.yaml with measured command limits")
 ap.add_argument("--interiorgs", default="", help="SAGE-3D scene id (e.g. 839962): realistic scene instead of boxes")
 ap.add_argument("--scene_dir", default="interiorgs", help="dir with <id>.usdz and <id>_collision.usd")
+ap.add_argument("--debug", action="store_true", help="print obs/actions/trunk height for the first policy steps")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
 if args.video:
@@ -251,6 +252,25 @@ for kb in range(n_brain):
         cmd_term.set(cmd)
         with torch.no_grad():
             act = policy(obs["policy"])
+        if args.debug and kb * SUB + s < 30:
+            o = obs["policy"][0]
+            # history layout: each term's 5-step history is contiguous (term-major); take the newest entry of each
+            dims = [3, 3, 3, 12, 12, 12, 2]
+            last, off = [], 0
+            for d in dims:
+                last.append(o[off + 4 * d: off + 5 * d])
+                off += 5 * d
+            last = torch.cat(last)
+            print(f"[debug] step {kb * SUB + s:2d} z={float(robot.data.root_pos_w[0, 2]):.3f} |a|max={float(act.abs().max()):.2f} "
+                  f"angvel={last[0:3].tolist()} grav={last[3:6].tolist()} cmd={last[6:9].tolist()} "
+                  f"qrel_max={float(last[9:21].abs().max()):.3f} qd_max={float(last[21:33].abs().max()):.3f} "
+                  f"phase={last[45:47].tolist()} obs_dim={o.numel()}", flush=True)
+            if kb * SUB + s == 0:
+                print("[debug] joint_names", robot.joint_names, flush=True)
+                print("[debug] joint_pos", [round(x, 3) for x in robot.data.joint_pos[0].tolist()], flush=True)
+                print("[debug] default ", [round(x, 3) for x in robot.data.default_joint_pos[0].tolist()], flush=True)
+                print("[debug] root_pos", robot.data.root_pos_w[0].tolist(), "root_quat", robot.data.root_quat_w[0].tolist(), flush=True)
+                print("[debug] obs term order", env.observation_manager.active_terms["policy"], flush=True)
         obs, _, _, _, _ = env.step(act)
         if args.video and (kb * SUB + s) % max(1, round(50 / args.fps)) == 0:
             rp, _ = robot_pose2d()

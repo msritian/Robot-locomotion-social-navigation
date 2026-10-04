@@ -89,10 +89,16 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
             self.episode_length_s = 10_000.0
             self.commands.base_velocity = ExternalVelocityCommandCfg()
             self.observations.policy.enable_corruption = False
-            for name in ("push_robot", "actuator_gains", "motor_strength", "add_base_mass", "reset_base",
-                         "reset_robot_joints"):
+            for name in ("push_robot", "actuator_gains", "motor_strength", "add_base_mass"):
                 if hasattr(self.events, name):
                     setattr(self.events, name, None)
+            # keep the reset events but without randomization: joints exactly at the walking default pose (without
+            # this they start at 0 = a pose never seen in training -> runaway actions), root exactly at the spawn
+            self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+            self.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
+            self.events.reset_base.params = {
+                "pose_range": {k: (0.0, 0.0) for k in ("x", "y", "yaw")},
+                "velocity_range": {k: (0.0, 0.0) for k in ("x", "y", "z", "roll", "pitch", "yaw")}}
             self.terminations.time_out = None
             self.terminations.base_too_low = None
             self.terminations.base_contact = None
