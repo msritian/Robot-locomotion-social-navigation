@@ -119,7 +119,7 @@ def per_sample_errors(modes, probs, fut):
             "minADE@2s": e.mean(-1).min(1), "minFDE@2s": e[:, :, 19].min(1)}
 
 
-def evaluate(names=("P0", "P1", "P2"), split="test"):
+def evaluate(names=("P0", "P1", "P2body", "P2"), split="test"):
     d = load(split)
     rows, raw = [], {}
     for name in names:
@@ -156,7 +156,7 @@ def evaluate(names=("P0", "P1", "P2"), split="test"):
 
 def main():
     ap = argparse.ArgumentParser()
-    ap.add_argument("--variant", choices=["P1", "P2"])
+    ap.add_argument("--variant", choices=["P1", "P2", "P2body"])
     ap.add_argument("--epochs", type=int, default=20)
     ap.add_argument("--eval", action="store_true")
     ap.add_argument("--split", default="test")

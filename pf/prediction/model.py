@@ -13,7 +13,7 @@ from torch import nn
 
 from pf.prediction.base import HIST, HORIZON, K, Forecast
 
-VARIANT_FEATURES = {"P1": 5, "P2": 10}
+VARIANT_FEATURES = {"P1": 5, "P2": 10, "P2body": 7}   # P2body: RQ2 ablation, body heading but NO head yaw
 
 
 def frame_of(pos, vel, body, vis):
@@ -55,12 +55,13 @@ def features(d: dict, variant: str):
     v = rotate(vel, ang)
     m = vis.astype(np.float32)[..., None]
     f = [p, v, m]
-    if variant == "P2":
+    if variant in ("P2", "P2body"):
         rb = body - ang[:, None]
         hm = np.isfinite(head)
         rh = np.where(hm, head, 0.0) - ang[:, None]
-        f += [np.sin(rb)[..., None], np.cos(rb)[..., None],
-              (np.sin(rh) * hm)[..., None], (np.cos(rh) * hm)[..., None], hm[..., None].astype(float)]
+        f += [np.sin(rb)[..., None], np.cos(rb)[..., None]]
+        if variant == "P2":
+            f += [(np.sin(rh) * hm)[..., None], (np.cos(rh) * hm)[..., None], hm[..., None].astype(float)]
     x = np.concatenate(f, axis=-1).astype(np.float32)
     # masked (missing) steps: features already hold the last value; also zero them out with the mask flag
     return x, origin, ang

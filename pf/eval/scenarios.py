@@ -6,8 +6,9 @@ T2 door exit         office: target leaves a room through the door and turns imm
 T3 crossing occluder open hall: a person crosses between robot and target 1-2 m in front of the robot
 T4 look-alike        a look-alike (cos 0.85-0.95) walks to the target's goal, crossing its path
 T5 disappearance     office: target walks from the corridor into a side room and steps out of view for 3-6 s
-T6 crowded corridor  corridor loop (1.6-2.0 m): 4 others walking in both directions
-T7 random mix        random layout family, 0-4 others, random target routes
+T6 crowded corridor  corridor loop (1.6-2.0 m): 6-10 others walking in both directions (Section 19.1)
+T7 random mix        random layout family, 0-8 others, random target routes (Section 19.1)
+T8 dense open space  open hall: 10-15 others crossing the target's path from several directions (Section 19.1)
 """
 from __future__ import annotations
 
@@ -17,7 +18,7 @@ from pf.config import deep_merge
 from pf.world.maps import FAMILIES, generate_map
 from pf.world.sim import World
 
-SCENARIOS = ("T1", "T2", "T3", "T4", "T5", "T6", "T7")
+SCENARIOS = ("T1", "T2", "T3", "T4", "T5", "T6", "T7", "T8")
 
 
 def _unit(v):
@@ -207,8 +208,9 @@ def build_T4(cfg, seed, attempt=0):
 
 # ---------------------------------------------------------------------------- T6 (crowded corridor)
 def build_T6(cfg, seed, attempt=0):
-    """Target walks down a 1.6-2.0 m corridor toward a corner. 2 others come from around the corner toward
-    the robot (opposite direction); 2 start 2-4 m behind the robot and overtake (same direction)."""
+    """Crowded corridor (Section 19.1: 6-10 others). Target walks down a 1.6-2.0 m corridor toward a corner.
+    About half the others come toward the robot from around the corner (opposite direction), the rest start
+    behind the robot and overtake (same direction); start delays are staggered so the stream is continuous."""
     over = {"loop": {"corridor_w": {"train": [1.6, 2.0], "test": [1.6, 2.0]}, "figure8_p": 0.0}}
     w, rng, tp, d_in, cur, d_out, nxt = _loop_turn_world(cfg, seed, over, attempt)
     if not _place_robot(w, tp, d_in, rng):
@@ -217,20 +219,68 @@ def build_T6(cfg, seed, attempt=0):
     w.add_person(tp, target=True, heading=np.arctan2(*d_in[::-1]), start_pause=float(rng.uniform(0.5, 1.0)),
                  route=[(cur, 0.0), (nxt, 0.0)])
     lat = np.array([-d_in[1], d_in[0]])
-    for k in range(4):
+    lat_out = np.array([-d_out[1], d_out[0]])
+    n_target = int(rng.integers(6, 11))
+    placed = 0
+    for k in range(3 * n_target):
+        if placed >= n_target:
+            break
         same = k % 2 == 0
-        for _try in range(100):
-            if same:
-                p = rp - d_in * rng.uniform(2.0, 4.0) + lat * rng.uniform(-0.3, 0.3)
-            else:
-                p = cur + d_out * rng.uniform(1.5, 5.0) + np.array([-d_out[1], d_out[0]]) * rng.uniform(-0.3, 0.3)
-            if w.grid.clearance(p) > 0.4 and all(np.hypot(*(p - q)) > 0.9 for q in w.people.pos) and \
-                    np.hypot(*(p - rp)) > 1.5:
-                break
+        if same:
+            p = rp - d_in * rng.uniform(1.8, 9.0) + lat * rng.uniform(-0.35, 0.35)
         else:
-            raise RuntimeError("T6 crowd placement failed")
-        route = [(cur, 0.0), (nxt, 0.0)] if same else [(cur, 0.0), (rp - d_in * 4.0, 0.0)]
-        w.add_person(p, speed=float(rng.uniform(0.5, 0.9)), start_pause=float(rng.uniform(0.0, 2.0)), route=route)
+            p = cur + d_out * rng.uniform(1.0, 8.0) + lat_out * rng.uniform(-0.35, 0.35)
+        if not (w.grid.clearance(p) > 0.4 and all(np.hypot(*(p - q)) > 0.8 for q in w.people.pos)
+                and np.hypot(*(p - rp)) > 1.5):
+            continue
+        route = [(cur, 0.0), (nxt, 0.0)] if same else [(cur, 0.0), (rp - d_in * 6.0, 0.0)]
+        w.add_person(p, speed=float(rng.uniform(0.45, 0.9)), start_pause=float(rng.uniform(0.0, 6.0)), route=route)
+        placed += 1
+    if placed < 6:
+        raise RuntimeError("T6 crowd placement failed")
+    return w
+
+
+# ---------------------------------------------------------------------------- T8 (dense open space)
+def build_T8(cfg, seed, attempt=0):
+    """Dense open space (Section 19.1): open hall, target walks a long straight run; 10-15 others walk
+    purposefully across the target's path from several directions (both sides, both ends), staggered."""
+    w = _new_world(cfg, seed, "hall", attempt=attempt)
+    rng = w.rng
+    tp, end, u = _straight_hall_run(w, rng, length=10.0)
+    if not _place_robot(w, tp, u, rng):
+        raise RuntimeError("T8 placement failed")
+    w.add_person(tp, target=True, heading=np.arctan2(*u[::-1]), start_pause=0.5, route=[(end, 2.0)])
+    rp = w.robot.pose[:2]
+    nrm = np.array([-u[1], u[0]])
+    n_target = int(rng.integers(10, 16))
+    placed = 0
+    for _ in range(40 * n_target):
+        if placed >= n_target:
+            break
+        xc = tp + u * rng.uniform(0.5, 10.0)                     # crossing point on the target's path
+        kind = rng.random()
+        if kind < 0.7:                                            # crossing from the left or right
+            side = rng.choice([-1.0, 1.0])
+            start = xc + side * nrm * rng.uniform(3.0, 7.0)
+            stop = xc - side * nrm * rng.uniform(3.0, 7.0)
+        else:                                                     # walking against the target (head-on lane)
+            start = xc + u * rng.uniform(4.0, 8.0) + nrm * rng.uniform(-1.5, 1.5)
+            stop = tp - u * 2.0 + nrm * rng.uniform(-1.5, 1.5)
+        if w.grid.clearance(start) < 0.45 or w.grid.clearance(stop) < 0.45:
+            continue
+        b = np.arctan2(*(start - rp)[::-1]) - w.robot.pose[2]
+        b = abs((b + np.pi) % (2 * np.pi) - np.pi)
+        if np.hypot(*(start - rp)) < 2.5 or (b < np.deg2rad(25) and np.hypot(*(start - rp)) < 6.0):
+            continue                                              # keep the t = 0 target choice unambiguous
+        if not all(np.hypot(*(start - q)) > 0.8 for q in w.people.pos):
+            continue
+        v = float(rng.uniform(0.5, 1.0))
+        w.add_person(start, heading=np.arctan2(*(stop - start)[::-1]), speed=v,
+                     start_pause=float(rng.uniform(0.0, 12.0)), route=[(stop, float(rng.uniform(1, 3)))])
+        placed += 1
+    if placed < 10:
+        raise RuntimeError("T8 crowd placement failed")
     return w
 
 
@@ -239,11 +289,11 @@ def build_T7(cfg, seed, attempt=0):
     w = World(cfg)
     rng = np.random.default_rng([seed, 77, attempt])
     fam = FAMILIES[int(rng.integers(len(FAMILIES)))]
-    return w.reset(seed, fam, n_others=int(rng.integers(0, 5)))
+    return w.reset(seed, fam, n_others=int(rng.integers(0, 9)))     # Section 19.1: 0-8 others
 
 
 BUILDERS = {"T1": build_T1, "T2": build_T2, "T3": build_T3, "T4": build_T4, "T5": build_T5, "T6": build_T6,
-            "T7": build_T7}
+            "T7": build_T7, "T8": build_T8}
 
 
 def build(cfg, scenario, seed, max_tries=10):

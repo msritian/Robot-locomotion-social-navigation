@@ -9,6 +9,11 @@ Predictor data/training (M6) must exist (models/predictor_P{1,2}.pt); see PROGRE
 from __future__ import annotations
 
 import argparse
+import os
+
+# one math thread per worker process (episodes already run in parallel)
+for _v in ("OMP_NUM_THREADS", "OPENBLAS_NUM_THREADS", "MKL_NUM_THREADS", "VECLIB_MAXIMUM_THREADS"):
+    os.environ.setdefault(_v, "1")
 
 from pf.eval.experiments import EXP_DIR, run_experiment
 
