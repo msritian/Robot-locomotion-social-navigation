@@ -102,6 +102,18 @@ def feet_contact(env: "ManagerBasedRLEnv", sensor_cfg: SceneEntityCfg, threshold
 
 
 # ---------------------------------------------------------------------------- events
+def hold_default_targets(env: "ManagerBasedRLEnv", env_ids: torch.Tensor | None,
+                         asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
+    """PD targets of joints the policy does not control (head, arms) = the default (walking) pose.
+    Isaac Lab initializes all joint position targets to ZERO and only action terms update them, so without
+    this the arms are driven to the URDF zero pose (T-pose)."""
+    asset = env.scene[asset_cfg.name]
+    if env_ids is None:
+        env_ids = torch.arange(env.num_envs, device=env.device)
+    ids = asset_cfg.joint_ids
+    tgt = asset.data.default_joint_pos[env_ids][:, ids]
+    asset.set_joint_position_target(tgt, joint_ids=ids, env_ids=env_ids)
+
 def randomize_motor_strength(env: "ManagerBasedRLEnv", env_ids: torch.Tensor | None, scale_range=(0.9, 1.1),
                              asset_cfg: SceneEntityCfg = SceneEntityCfg("robot")):
     asset = env.scene[asset_cfg.name]

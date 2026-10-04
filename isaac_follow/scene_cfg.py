@@ -73,9 +73,12 @@ def _person(i, color, pos):
     ), color
 
 
-def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False, width=1280, height=720):
-    """people_pos: (N, 2) initial positions; people_colors: N shirt colors. Robot spawn is set by the caller."""
-    walls, furn = classify_rects(world_map)
+def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False, width=1280, height=720,
+                 interior_usda=None):
+    """people_pos: (N, 2) initial positions; people_colors: N shirt colors. Robot spawn is set by the caller.
+    interior_usda: an assembled InteriorGS scene (splat + collision, isaac_follow.interiorgs_scene) used INSTEAD
+    of the extruded box walls/furniture (Section 19.2)."""
+    walls, furn = classify_rects(world_map) if interior_usda is None else ([], [])
 
     @configclass
     class FollowEnvCfg(K1FlatEnvCfg_PLAY):
@@ -102,6 +105,9 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
                 prim_path="/World/sunLight",
                 spawn=sim_utils.DistantLightCfg(intensity=2500.0, angle=1.0, color=(1.0, 0.97, 0.9)),
                 init_state=AssetBaseCfg.InitialStateCfg(rot=(0.92, 0.2, 0.2, 0.2)))
+            if interior_usda is not None:
+                self.scene.interior = AssetBaseCfg(prim_path="/World/Interior",
+                                                   spawn=sim_utils.UsdFileCfg(usd_path=interior_usda))
             for i, r in enumerate(walls):
                 setattr(self.scene, f"wall_{i:03d}", _box(i, r, WALL_H, WALL_C, "Wall"))
             for i, r in enumerate(furn):

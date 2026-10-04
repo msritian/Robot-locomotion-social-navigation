@@ -150,6 +150,9 @@ class K1FlatEnvCfg(LocomotionVelocityRoughEnvCfg):
                     "operation": "scale", "distribution": "uniform"})
         self.events.motor_strength = EventTerm(func=k1mdp.randomize_motor_strength, mode="reset",
                                                params={"scale_range": (0.9, 1.1)})
+        self.events.hold_head_arms = EventTerm(
+            func=k1mdp.hold_default_targets, mode="reset",
+            params={"asset_cfg": SceneEntityCfg("robot", joint_names=[".*head.*", ".*shoulder.*", ".*elbow.*"])})
         self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
         self.events.reset_base.params = {
             "pose_range": {"x": (-0.5, 0.5), "y": (-0.5, 0.5), "yaw": (-3.14, 3.14)},

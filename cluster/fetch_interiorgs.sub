@@ -1,0 +1,16 @@
+# CPU job: fetch InteriorGS/SAGE-3D scenes into /staging (PROJECT_SPEC 19.2).
+universe = vanilla
+executable = fetch_interiorgs.sh
+arguments = 839962 840025 839994 840042 840162 839882
+transfer_output_files = interiorgs.tar
+transfer_output_remaps = "interiorgs.tar = file:///staging/s/smittal39/k1-follow/interiorgs_v1.tar"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+log = jobs/out/fetch_interiorgs.log
+output = jobs/out/fetch_interiorgs.out
+error = jobs/out/fetch_interiorgs.err
+requirements = (HasCHTCStaging == true) && (OpSysMajorVer == 9)
+request_cpus = 1
+request_memory = 2GB
+request_disk = 6GB
+queue

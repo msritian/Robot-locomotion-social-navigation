@@ -30,6 +30,8 @@ ap.add_argument("--video", action="store_true")
 ap.add_argument("--fps", type=int, default=25)
 ap.add_argument("--out", default="follow_out")
 ap.add_argument("--limits", default="", help="walker_response.yaml with measured command limits")
+ap.add_argument("--interiorgs", default="", help="SAGE-3D scene id (e.g. 839962): realistic scene instead of boxes")
+ap.add_argument("--scene_dir", default="interiorgs", help="dir with <id>.usdz and <id>_collision.usd")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
 if args.video:
@@ -62,7 +64,18 @@ DT_BRAIN, DT_POLICY = cfg["sim"]["dt"], 0.02
 SUB = int(round(DT_BRAIN / DT_POLICY))
 
 # ------------------------------------------------------------------ 2D world (map, people, scenario)
-w = build(cfg, args.scenario, args.seed)
+interior_usda = None
+if args.interiorgs:
+    from isaac_follow.interiorgs_scene import write_scene_usda
+    from pf.eval.scenarios import build_on_map
+    from pf.world.interiorgs import scene_to_map
+    coll = os.path.join(args.scene_dir, f"{args.interiorgs}_collision.usd")
+    imap = scene_to_map(coll, args.interiorgs, cfg)
+    interior_usda = write_scene_usda(os.path.join(args.out, f"scene_{args.interiorgs}.usda"),
+                                     os.path.join(args.scene_dir, f"{args.interiorgs}.usdz"), coll, imap.params["frame"])
+    w = build_on_map(cfg, imap, args.scenario, args.seed)
+else:
+    w = build(cfg, args.scenario, args.seed)
 if args.crowd:
     pts = w.walkable_points(0.45)
     rng = np.random.default_rng([args.seed, 4242])
@@ -94,7 +107,8 @@ HI = np.array([lim["vx"][1], lim["vy"][1], lim["wz"][1]])
 RATE = np.array([cfg["robot"]["acc_lin"], cfg["robot"]["acc_lin"], cfg["robot"]["acc_ang"]]) * DT_BRAIN * 2.0
 
 # ------------------------------------------------------------------ Isaac env
-env_cfg = make_env_cfg(w.map, w.people.pos, colors, cfg["robot"]["fov_deg"], video=args.video)
+env_cfg = make_env_cfg(w.map, w.people.pos, colors, cfg["robot"]["fov_deg"], video=args.video,
+                       interior_usda=interior_usda)
 x0, y0, yaw0 = w.robot.pose
 env_cfg.scene.robot.init_state.pos = (float(x0), float(y0), 0.57)
 env_cfg.scene.robot.init_state.rot = (float(np.cos(yaw0 / 2)), 0.0, 0.0, float(np.sin(yaw0 / 2)))
@@ -111,7 +125,18 @@ for i in range(w.people.n):
             prim_path=f"/World/Scene/Person_{i:02d}_{part}", spawn=shape,
             init_state=RigidObjectCfg.InitialStateCfg(pos=(w.people.pos[i, 0], w.people.pos[i, 1], z))))
 env = ManagerBasedRLEnv(cfg=env_cfg)
-policy = torch.jit.load(args.policy, map_location=env.device).eval()
+if interior_usda is not None:   # the splat provides the visible floor; hide the physics ground plane's visuals
+    from pxr import UsdGeom
+    import omni.usd
+    gp = omni.usd.get_context().get_stage().GetPrimAtPath("/World/ground")
+    if gp.IsValid():
+        UsdGeom.Imageable(gp).MakeInvisible()
+if args.policy == "zero":      # plumbing tests only: legs hold the default pose (not a walker)
+    n_act = env.action_manager.total_action_dim
+    def policy(o):
+        return torch.zeros(o.shape[0], n_act, device=env.device)
+else:
+    policy = torch.jit.load(args.policy, map_location=env.device).eval()
 robot = env.scene["robot"]
 head_id = robot.find_bodies(HEAD_LINK)[0][0]
 cam_off = torch.tensor([HEAD_CAMERA_OFFSET], device=env.device)
@@ -265,7 +290,9 @@ np.savez_compressed(os.path.join(args.out, f"log_{args.scenario}_{args.seed}_{ar
                     **{k: v for k, v in log.items() if isinstance(v, np.ndarray) and v.dtype != object})
 if args.video:
     from isaac_follow.video import compose
-    title = f"{args.scenario} seed {args.seed} | {'FULL (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive'}"
-    compose(frames, log, args.fps, os.path.join(args.out, f"showcase_{args.scenario}_{args.seed}_{args.method}"), title)
+    where = f"InteriorGS {args.interiorgs}" if args.interiorgs else "procedural scene"
+    title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
+             f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
+    compose(frames, log, args.fps, os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}{args.scenario}_{args.seed}_{args.method}"), title)
 env.close()
 app.close()

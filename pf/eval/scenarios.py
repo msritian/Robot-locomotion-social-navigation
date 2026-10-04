@@ -307,3 +307,41 @@ def build(cfg, scenario, seed, max_tries=10):
         except RuntimeError as e:
             last = e
     raise RuntimeError(f"{scenario} seed {seed}: {last}")
+
+
+# ---------------------------------------------------------------------------- InteriorGS showcase scenarios
+def build_on_map(cfg, world_map, kind, seed, n_others=None):
+    """T4 / T5 / T6 / T8-style episode on an arbitrary map (e.g. an InteriorGS scene, Section 19.2):
+    the target walks a 4-POI route; others walk purposefully between POIs. Crowd sizes follow Section 19.1
+    (T6: 6-10, T8: 10-15); T4 adds a look-alike heading for the target's first goal; T5 picks a first goal
+    that is hidden from the robot's start (behind walls/furniture) so the target disappears from view."""
+    rng = np.random.default_rng([seed, 191])
+    w = World(cfg).reset(seed, world_map=world_map, spawn=False)
+    w.rng = np.random.default_rng([seed, 7])
+    default_n = {"T4": (6, 9), "T5": (6, 9), "T6": (6, 11), "T8": (10, 16)}[kind]
+    n = int(rng.integers(*default_n)) if n_others is None else n_others
+    w.spawn_default(0)                                     # robot + target (Section 6.1 placement)
+    ti = w.target_index
+    tp = w.people.pos[ti]
+    pois = world_map.pois
+    order = list(rng.permutation(len(pois)))
+    if kind == "T5":
+        rp = w.robot.pose[:2]
+        hidden = [k for k in order if not w.grid.segment_free(rp, pois[k], 0.0) and np.hypot(*(pois[k] - tp)) > 3]
+        order = hidden[:1] + [k for k in order if k not in hidden[:1]]
+    route = [(pois[k], float(rng.uniform(1.0, 3.0))) for k in order[:4]]
+    w.people.agents[ti].route = route
+    w.people.agents[ti].next_path = None
+    w.people._plan_next(ti)
+    if kind == "T4":
+        base = w.app.lookalike_base(w.app.base[w.app_idx[ti]])
+        pts = w.walkable_points(0.45)
+        d = np.hypot(*(pts - tp).T)
+        cand = [p for p in pts[(d > 3.0) & (d < 7.0)] if not w._in_initial_view(p)]
+        if cand:
+            p = cand[rng.integers(len(cand))]
+            w.add_person(p, base=base, route=[(route[0][0], 1.0)], start_pause=0.0)
+            w.lookalike_ids = [w.people.n - 1]
+    _add_others(w, n, rng, [tp, w.robot.pose[:2]], min_d=2.0)
+    w.scenario, w.scenario_attempt = f"{kind}-interiorgs", 0
+    return w
