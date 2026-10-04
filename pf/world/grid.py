@@ -59,10 +59,10 @@ class Grid:
     def raycast(self, origin: np.ndarray, angles: np.ndarray, max_range: float) -> np.ndarray:
         """Distance from `origin` (2,) along each world-frame angle to the first occupied cell.
 
-        Fixed-step sampling at half the grid resolution (accuracy ~0.025 m), vectorized over rays.
+        Fixed-step sampling at the grid resolution (accuracy ~0.05 m), vectorized over rays.
         """
         angles = np.asarray(angles, dtype=np.float64)
-        step = 0.5 * self.res
+        step = self.res  # walls are >= 3 cells thick, so 1-cell steps cannot skip through them
         t = np.arange(1, int(np.ceil(max_range / step)) + 1) * step
         px = origin[0] + np.cos(angles)[:, None] * t[None, :]
         py = origin[1] + np.sin(angles)[:, None] * t[None, :]
@@ -80,7 +80,7 @@ class Grid:
         a = np.asarray(a, dtype=np.float64)
         b = np.asarray(b, dtype=np.float64)
         length = np.linalg.norm(b - a, axis=-1)
-        n = int(np.ceil(np.max(length) / (0.5 * self.res))) + 1 if length.size else 1
+        n = int(np.ceil(np.max(length) / self.res)) + 1 if length.size else 1
         s = np.linspace(0.0, 1.0, max(n, 2))
         pts = a[..., None, :] + (b - a)[..., None, :] * s[:, None]
         c = self.clearance(pts)

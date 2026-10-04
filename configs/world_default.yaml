@@ -86,3 +86,32 @@ maps:
     corridor_w: {train: [1.6, 2.0], test: [1.4, 1.6]}
     figure8_p: 0.4
   test_seed_start: 1000
+
+perception:             # Section 5 ("people as numbers"); every sigma/rate is multiplied by noise_scale
+  noise_scale: 1.0      # {0, 0.5, 1, 2}; 0 = oracle perception
+  p_det_near: 0.95
+  near_m: 3.0
+  p_det_far: 0.70
+  far_m: 8.0
+  partial_occ_margin: 0.10      # LOS within 0.1 m of another person's circle -> partial occlusion
+  partial_occ_factor: 0.6
+  pos_sigma0: 0.05              # sigma = 0.05 + 0.03 * distance (m), robot frame
+  pos_sigma_k: 0.03
+  body_heading_sigma_deg: 10.0
+  head_yaw_sigma_deg: 15.0
+  head_nan_p: 0.05
+  app_extra_sigma: 0.05
+  fp_rate: 0.05                 # Poisson mean per step
+  n_depth_rays: 32
+  depth_sigma0: 0.02
+  depth_sigma_k: 0.01
+
+tracker:
+  confirm_hits: 2               # new track after 2 consecutive detections
+  delete_after_s: 1.0
+  gate_chi2: 9.21               # 99% gate, 2 DoF Mahalanobis
+  q_acc: 1.0                    # process noise (white acceleration std, m/s^2)
+  init_vel_sigma: 1.0
+  min_meas_sigma: 0.01          # floor on measurement sigma (keeps the KF well-posed at noise_scale 0)
+  swap_dist: 0.6                # injected ID swaps when two people are closer than this (true distance)
+  swap_p: 0.2                   # per step, scaled by noise_scale

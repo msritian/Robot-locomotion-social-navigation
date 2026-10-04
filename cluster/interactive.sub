@@ -1,0 +1,14 @@
+# Interactive GPU session inside the Isaac Lab container (for debugging).
+# Use via cluster/interactive_gpu.sh (needs a real terminal), or on the AP: condor_submit -i interactive.sub
+universe = container
+container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
+transfer_input_files = run_in_container.sh, hello.sh
+requirements = (HasCHTCStaging == true)
+request_gpus = 1
+require_gpus = (DeviceName == "NVIDIA L40S") || (DeviceName == "NVIDIA L40") || (DeviceName == "NVIDIA A40")
++WantGPULab = true
++GPUJobLength = "short"
+request_cpus = 8
+request_memory = 48GB
+request_disk = 60GB
+queue

@@ -1,0 +1,8 @@
+{
+ "family": "office",
+ "seed": 4,
+ "seconds": 40.0,
+ "track_pos_err_median_m": 0.09542474922784623,
+ "track_pos_err_p90_m": 0.20810730696586663,
+ "n_swaps": 5
+}

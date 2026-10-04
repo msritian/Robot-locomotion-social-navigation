@@ -227,3 +227,5 @@ videos/**/*.mp4
 models/**/*.pt
 !models/k1_walker.pt
 *.sif
+cluster/jobs/out/*
+!cluster/jobs/out/.gitkeep
