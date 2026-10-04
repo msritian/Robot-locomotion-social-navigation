@@ -51,3 +51,75 @@ def write_scene_usda(out_path, usdz_path, collision_path, frame):
                           collision=Path(collision_path).resolve())
     Path(out_path).write_text(txt)
     return str(out_path)
+
+
+FLOOR_RGB = (0.78, 0.76, 0.72)
+WALL_RGB = (0.92, 0.91, 0.88)
+FURNITURE_RGB = [(0.55, 0.40, 0.28), (0.35, 0.38, 0.42), (0.62, 0.55, 0.45), (0.28, 0.42, 0.55), (0.70, 0.66, 0.60),
+                 (0.45, 0.30, 0.25)]
+
+
+def _drop_ceiling(prim, z_max=2.2):
+    """Remove faces whose vertices are all above z_max (ceiling): keeps the interior lit and the chase camera free."""
+    import numpy as np
+    from pxr import UsdGeom, Vt
+    m = UsdGeom.Mesh(prim)
+    pts = np.asarray(m.GetPointsAttr().Get())
+    cnt = np.asarray(m.GetFaceVertexCountsAttr().Get())
+    idx = np.asarray(m.GetFaceVertexIndicesAttr().Get())
+    if pts.size == 0 or cnt.size == 0:
+        return
+    starts = np.concatenate([[0], np.cumsum(cnt)[:-1]])
+    keep_c, keep_i = [], []
+    for st, c in zip(starts, cnt):
+        f = idx[st:st + c]
+        if np.all(pts[f, 2] > z_max):
+            continue
+        keep_c.append(c)
+        keep_i.extend(f.tolist())
+    m.GetFaceVertexCountsAttr().Set(Vt.IntArray([int(c) for c in keep_c]))
+    m.GetFaceVertexIndicesAttr().Set(Vt.IntArray([int(i) for i in keep_i]))
+
+
+def style_collision_meshes(stage, root):
+    """Make the (invisible) SAGE-3D collision meshes visible with simple materials: floor plan = walls/floor colour,
+    every other object a muted furniture colour. Returns the number of meshes made visible."""
+    from pxr import Gf, Sdf, UsdGeom, UsdShade
+
+    def material(name, rgb):
+        path = Sdf.Path(f"/World/Looks/{name}")
+        mat = UsdShade.Material.Define(stage, path)
+        sh = UsdShade.Shader.Define(stage, path.AppendChild("Shader"))
+        sh.CreateIdAttr("UsdPreviewSurface")
+        sh.CreateInput("diffuseColor", Sdf.ValueTypeNames.Color3f).Set(Gf.Vec3f(*rgb))
+        sh.CreateInput("roughness", Sdf.ValueTypeNames.Float).Set(0.8)
+        mat.CreateSurfaceOutput().ConnectToSource(sh.ConnectableAPI(), "surface")
+        return mat
+
+    wall = material("igs_wall", WALL_RGB)
+    furn = [material(f"igs_furn_{i}", c) for i, c in enumerate(FURNITURE_RGB)]
+    root_prim = stage.GetPrimAtPath(root)
+    if not root_prim.IsValid():
+        return 0
+    stage.Load(root_prim.GetPath())                      # payloads may be unloaded
+    n = 0
+    for prim in stage.Traverse():
+        if not str(prim.GetPath()).startswith(root) or prim.GetTypeName() != "Mesh":
+            continue
+        img = UsdGeom.Imageable(prim)
+        img.GetVisibilityAttr().Set(UsdGeom.Tokens.inherited)
+        img.GetPurposeAttr().Set(UsdGeom.Tokens.default_)
+        name = prim.GetName().lower() + prim.GetParent().GetName().lower()
+        is_shell = "floorplan" in name or "wall" in name or "window" in name
+        if is_shell:
+            _drop_ceiling(prim)
+        m = wall if is_shell else furn[sum(prim.GetName().encode()) % len(furn)]
+        UsdShade.MaterialBindingAPI.Apply(prim).Bind(m, UsdShade.Tokens.strongerThanDescendants)
+        n += 1
+    # parents may be invisible too
+    p = root_prim
+    while p.IsValid() and str(p.GetPath()) != "/":
+        if p.IsA(UsdGeom.Imageable):
+            UsdGeom.Imageable(p).GetVisibilityAttr().Set(UsdGeom.Tokens.inherited)
+        p = p.GetParent()
+    return n

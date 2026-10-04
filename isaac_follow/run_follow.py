@@ -127,12 +127,14 @@ for i in range(w.people.n):
 print(f"[run_follow] building Isaac env: {w.people.n} people, video={args.video}", flush=True)
 env = ManagerBasedRLEnv(cfg=env_cfg)
 print("[run_follow] env ready", flush=True)
-if interior_usda is not None:   # the splat provides the visible floor; hide the physics ground plane's visuals
-    from pxr import UsdGeom
+if interior_usda is not None:
+    # Gaussian-splat (NuRec) rendering needs isaacsim.replicator.nurec_utils, which the Isaac Lab container does not
+    # ship -> Section 19.6 fallback: render the InteriorGS collision meshes (real walls, floor, furniture) with
+    # simple materials instead of the splat.
+    from isaac_follow.interiorgs_scene import style_collision_meshes
     import omni.usd
-    gp = omni.usd.get_context().get_stage().GetPrimAtPath("/World/ground")
-    if gp.IsValid():
-        UsdGeom.Imageable(gp).MakeInvisible()
+    n_vis = style_collision_meshes(omni.usd.get_context().get_stage(), "/World/Interior/scene_collision")
+    print(f"[run_follow] InteriorGS: splat not renderable in this container; showing {n_vis} collision meshes", flush=True)
 if args.policy == "zero":      # plumbing tests only: legs hold the default pose (not a walker)
     n_act = env.action_manager.total_action_dim
     def policy(o):
