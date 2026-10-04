@@ -7,9 +7,9 @@ TRAIN=$1; PLUMB=$2; POLL=600
 q() { rsh "$@" 2>/dev/null || { echo "STOP: ssh connection lost (reopen the ControlMaster connection)"; exit 2; }; }
 state() { q "s=\$(condor_q $1 -af JobStatus | head -1); [ -n \"\$s\" ] && echo \$s || echo \"done:\$(condor_history $1 -limit 1 -af ExitCode | head -1)\""; }
 tb() { q "grep -c Traceback ~/k1-follow/cluster/jobs/out/$1 2>/dev/null || echo 0" | tail -1; }
-plumb_done=0
+plumb_done=0; [ "$PLUMB" = none ] && plumb_done=1
 # only NEW tracebacks count (logs keep output from earlier attempts)
-TB_TRAIN0=$(tb train_walker_$TRAIN.out); TB_PLUMB0=$(tb isaac_plumb_$PLUMB.out)
+TB_TRAIN0=$(tb train_walker_$TRAIN.out); TB_PLUMB0=$( [ "$PLUMB" = none ] && echo 0 || tb isaac_plumb_$PLUMB.out )
 # ---- 1. wait for training (and keep an eye on the plumbing test)
 while true; do
   t=$(state $TRAIN)
@@ -17,7 +17,7 @@ while true; do
     p=$(state $PLUMB)
     case "$p" in
       1|2) [ "$(tb isaac_plumb_$PLUMB.out)" != "$TB_PLUMB0" ] && { echo "STOP: plumbing test traceback (job $PLUMB)"; exit 1; } ;;
-      done:0) plumb_done=1 ;;
+      done:0) bash "$CLUSTER_DIR/fetch_results.sh" >/dev/null 2>&1; echo "PLUMB_DONE: plumbing job $PLUMB finished OK (training still running); review its frames"; exit 0 ;;
       *) echo "STOP: plumbing test ended badly: $p (job $PLUMB)"; exit 1 ;;
     esac
   fi
