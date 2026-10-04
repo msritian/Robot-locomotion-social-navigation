@@ -232,3 +232,8 @@ cluster/jobs/out/*
 !cluster/jobs/out/.gitkeep
 results/M6/raw/
 results/cluster/
+
+# internal working docs (kept locally, not published)
+PROJECT_SPEC.md
+PROGRESS.md
+ASSUMPTIONS.md

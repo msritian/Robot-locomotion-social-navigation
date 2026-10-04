@@ -8,7 +8,7 @@ doesn't get fooled by someone in a similar shirt, and goes looking if the person
 
 > **Status (Oct 2026):** the following "brain" and all 2D experiments work. The K1 walking policy is training on
 > the UW–Madison CHTC GPU cluster. Next: the first videos of the walking K1 following a person in realistic,
-> crowded indoor scenes. See [`PROGRESS.md`](PROGRESS.md) for the full log, including what failed.
+> crowded indoor scenes.
 
 ---
 
@@ -68,7 +68,7 @@ stop-and-scan.
 **Honest negatives.** Steering toward the *predicted* position helps only a little overall (+1 to +2 points of
 tracking; clearest in the crowded corridor: +8 points, turn lag −3 s). The best predictor does not follow better
 than a simple one, probably because the target is slow (~0.35 m/s), so a 0.5 s look-ahead moves the goal only
-~20 cm. Details in [`PROGRESS.md`](PROGRESS.md).
+~20 cm. Per-scenario tables with paired confidence intervals are in `results/E2/`.
 
 > ⚠️ **Simulation only.** Human motion and the "look before you turn" cue are synthetic. These results show that the
 > method can use such signals, not that real people behave exactly this way.
@@ -126,7 +126,6 @@ configs/         world defaults + one YAML per experiment
 models/          trained predictors (walker export lands here)
 results/         CSVs, figures, GIFs per milestone/experiment
 tests/           unit tests (world, perception, memory)
-PROJECT_SPEC.md  the full specification · PROGRESS.md log · ASSUMPTIONS.md every assumption + licenses
 ```
 
 ## Quick start (2D brain, laptop)
@@ -149,4 +148,4 @@ Cluster (walker training, Isaac videos): see [`cluster/README_CLUSTER.md`](clust
 - Indoor scenes: [SAGE-3D / InteriorGS](https://github.com/Galery23/SAGE-3D_Official) (CC-BY-NC-4.0, research only).
 - Compute: [UW–Madison CHTC](https://chtc.cs.wisc.edu/).
 
-Full list with versions: [`ASSUMPTIONS.md`](ASSUMPTIONS.md).
+Pinned versions and attribution for vendored code: [`k1_walker/NOTICE`](k1_walker/NOTICE).
