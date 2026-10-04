@@ -51,7 +51,7 @@ class World:
         self.step_i = 0
         self.t = 0.0
         self.hist = {"robot": [], "odom": [], "cmd": [], "pos": [], "vel": [], "heading": [], "head": [],
-                     "collided": []}
+                     "collided": [], "robot_person_d": []}
         if spawn:
             if n_others is None:
                 n_others = int(self.rng.integers(0, 5))
@@ -92,10 +92,22 @@ class World:
             for _try in range(500):
                 p = pts[rng.integers(len(pts))]
                 if np.hypot(*(p - rp)) > 2.5 and np.hypot(*(p - tp)) > 1.5 and \
-                        all(np.hypot(*(p - q)) > 1.0 for q in self.people.pos):
+                        all(np.hypot(*(p - q)) > 1.0 for q in self.people.pos) and \
+                        not self._in_initial_view(p):
                     break
             self.add_person(p, target=False, heading=rng.uniform(-np.pi, np.pi),
                             start_pause=float(rng.uniform(0.0, 1.0)))
+
+    def _in_initial_view(self, p, margin_deg=10.0):
+        """True if p could be seen at t = 0 (inside FOV + margin, in range, wall-free line of sight).
+        Others start out of view so that the t = 0 target choice (Section 6.1) is unambiguous."""
+        x, y, yaw = self.robot.pose
+        d = np.asarray(p) - [x, y]
+        b = abs((np.arctan2(d[1], d[0]) - yaw + np.pi) % (2 * np.pi) - np.pi)
+        fov = np.deg2rad(self.cfg["robot"]["fov_deg"] + 2 * margin_deg)
+        if b > fov / 2 or np.hypot(*d) > self.cfg["robot"]["cam_range"][1]:
+            return False
+        return bool(self.grid.segment_free(np.array([x, y]), np.asarray(p, float), 0.0))
 
     @property
     def target_index(self) -> int:
@@ -104,6 +116,9 @@ class World:
     # ------------------------------------------------------------------ step
     def step(self, cmd):
         self.robot.step(cmd, self.grid)
+        # robot-person distances right after the robot moved, before people react: person collisions are
+        # measured here so they reflect the robot's own motion (people never walk into the robot)
+        rp = np.hypot(*(self.people.pos - self.robot.pose[:2]).T) if self.people.n else np.zeros(0)
         self.people.step(self.robot.pose[:2], self.robot.radius)
         self.step_i += 1
         self.t += self.dt
@@ -116,6 +131,7 @@ class World:
         h["heading"].append(self.people.heading.copy())
         h["head"].append(self.people.head.copy())
         h["collided"].append(self.robot.collided)
+        h["robot_person_d"].append(rp)
         return self.step_i >= self.max_steps
 
     def history_arrays(self) -> dict:

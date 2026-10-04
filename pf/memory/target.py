@@ -62,12 +62,14 @@ class TargetMemory:
     def expected(self, forecast=None):
         """(position, sigma) where the target should be now."""
         mc = self.mc
+        dt = 0.0 if not np.isfinite(self.time_since_seen) else self.time_since_seen
+        # uncertainty keeps growing while the target is unseen (also beyond the forecast horizon)
+        grow = mc["sigma_min"] + mc["sigma_growth"] * dt
         if forecast is not None:
-            return np.asarray(forecast[0]), max(mc["sigma_min"], float(forecast[1]))
+            return np.asarray(forecast[0]), max(grow, float(forecast[1]))
         if self.last_pos is None:
             return None, None
-        dt = 0.0 if not np.isfinite(self.time_since_seen) else self.time_since_seen
-        return self.last_pos + self.last_vel * dt, mc["sigma_min"] + mc["sigma_growth"] * dt
+        return self.last_pos + self.last_vel * dt, grow
 
     # ------------------------------------------------------------------ per-step
     def step(self, obs: dict, dt: float, forecast=None):

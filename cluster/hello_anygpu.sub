@@ -1,0 +1,27 @@
+# M0 hello-world GPU job (Spec A.5). Submit from $REMOTE_WORKDIR/cluster:  condor_submit hello.sub
+# Same as hello.sub but on any GPU with compute capability >= 8.0 (headless training check only).
+universe = container
+container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
+
+executable = run_in_container.sh
+arguments = bash hello.sh
+transfer_input_files = hello.sh
+transfer_output_files = hello_out.tar.gz
+transfer_output_remaps = "hello_out.tar.gz = jobs/out/hello_$(Cluster).tar.gz"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+log = jobs/out/hello_$(Cluster).log
+output = jobs/out/hello_$(Cluster).out
+error = jobs/out/hello_$(Cluster).err
+
+requirements = (HasCHTCStaging == true)
+request_gpus = 1
+gpus_minimum_capability = 8.0
++WantGPULab = true
++GPUJobLength = "short"
+request_cpus = 8
+request_memory = 48GB
+request_disk = 60GB
+
+queue

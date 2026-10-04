@@ -258,6 +258,21 @@ class People:
             vb[still] = 0.0
             nb[still] = self.pos[bad][still]
             v[bad], new[bad] = vb, nb
+        # robot guard (Spec 4.4 "minimal repulsion to avoid physically overlapping it"): people never step
+        # into body contact with the robot; they slide around it instead
+        if robot_xy is not None:
+            rxy = np.asarray(robot_xy)[:2]
+            dmin = self.radius + robot_radius + 0.02
+            dd = new - rxy
+            dn = np.hypot(dd[:, 0], dd[:, 1])
+            inside = dn < dmin
+            if inside.any():
+                u = dd[inside] / np.maximum(dn[inside], 1e-9)[:, None]
+                proj = rxy + u * dmin
+                ok = self.grid.clearance(proj) >= 0.9 * self.radius
+                old = self.pos[inside]
+                new[inside] = np.where(ok[:, None], proj, old)
+                v[inside] = (new[inside] - old) / dt
         self.pos, self.vel = new, v
         self._update_orientation(moving)
         self.t += dt

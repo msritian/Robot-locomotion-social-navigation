@@ -33,6 +33,7 @@ class DWAPlanner:
 
     def observe(self, obs):
         self.map.update(obs["robot_odom"], obs["ray_angles"], obs["depth_rays"])
+        self.map.prepare(obs["robot_odom"][:2])
 
     def _samples(self):
         dc = self.dc
@@ -60,7 +61,6 @@ class DWAPlanner:
             pose = integrate_pose(pose, v, self.dt)
             traj[:, k] = pose
         xy = traj[..., :2]
-        self.map.prepare(odom[:2])
         clear = self.map.clearance(xy.reshape(-1, 2)).reshape(S, T)
         min_clear = clear.min(axis=1) - self.radius
         ok = min_clear >= dc["collide_margin"]

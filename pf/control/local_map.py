@@ -58,7 +58,7 @@ class LocalMap:
         iy, ix = self._idx(center_xy)
         y0, x0 = max(iy - self.win, 0), max(ix - self.win, 0)
         y1, x1 = min(iy + self.win + 1, self.n), min(ix + self.win + 1, self.n)
-        occ = self.occupied()[y0:y1, x0:x1]
+        occ = self.ev[y0:y1, x0:x1] > 0.5
         if occ.any():
             d = ndimage.distance_transform_edt(~occ) * self.res - 0.5 * self.res
         else:
