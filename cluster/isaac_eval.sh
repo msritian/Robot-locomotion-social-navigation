@@ -19,8 +19,9 @@ for sc in ${SCEN//,/ }; do
       [ "$SECS" != 0 ] && extra+=(--seconds "$SECS")
       igs=(); [ "$scene" != none ] && igs=(--interiorgs "$scene" --scene_dir interiorgs)
       echo "=== $sc scene=$scene seed $s $m $(date -Is)"
-      /isaac-sim/python.sh isaac_follow/run_follow.py --headless --scenario "$sc" --seed "$s" --method "$m" \
-          --policy "$POLICY" --out d_out $LIM "${extra[@]}" "${igs[@]}" 2>&1 | grep -vE "Extensions config|^\s*$|\[Warning\]|carb.launcher" | tail -60
+      PYTHONUNBUFFERED=1 /isaac-sim/python.sh -u isaac_follow/run_follow.py --headless --scenario "$sc" --seed "$s" --method "$m" \
+          --policy "$POLICY" --out d_out $LIM "${extra[@]}" "${igs[@]}" 2>&1 | tee -a d_out/full_${sc}_${scene}_${s}_${m}.log \
+          | grep --line-buffered -vE "Extensions config|^\s*$|\[Warning\]|carb.launcher|interpreter =|read(Stdout|Stderr)|onRead"
       [ "$MODE" = plumb ] && break
     done
   done

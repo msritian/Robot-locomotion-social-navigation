@@ -124,7 +124,9 @@ for i in range(w.people.n):
         setattr(env_cfg.scene, f"person_{i:02d}_{part}", RigidObjectCfg(
             prim_path=f"/World/Scene/Person_{i:02d}_{part}", spawn=shape,
             init_state=RigidObjectCfg.InitialStateCfg(pos=(w.people.pos[i, 0], w.people.pos[i, 1], z))))
+print(f"[run_follow] building Isaac env: {w.people.n} people, video={args.video}", flush=True)
 env = ManagerBasedRLEnv(cfg=env_cfg)
+print("[run_follow] env ready", flush=True)
 if interior_usda is not None:   # the splat provides the visible floor; hide the physics ground plane's visuals
     from pxr import UsdGeom
     import omni.usd
@@ -270,7 +272,7 @@ for kb in range(n_brain):
         fell = True
         print(f"[run_follow] K1 FELL at t={kb * DT_BRAIN:.1f}s")
         break
-    if kb % 50 == 0:
+    if kb % 10 == 0:
         print(f"[run_follow] t={kb * DT_BRAIN:5.1f}s state={brain.state:18s} cmd={np.round(cmd, 2)} "
               f"dist={np.hypot(*(w.people.pos[ti] - pose_after[:2])):.2f} wall={(time.time() - t0):.0f}s", flush=True)
 
