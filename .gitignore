@@ -229,3 +229,4 @@ models/**/*.pt
 *.sif
 cluster/jobs/out/*
 !cluster/jobs/out/.gitkeep
+results/M6/raw/

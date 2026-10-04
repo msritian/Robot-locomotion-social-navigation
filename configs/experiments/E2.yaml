@@ -1,0 +1,10 @@
+# E2 (RQ1): does steering toward the PREDICTED target position help? All methods use M2 memory + S1 search.
+id: E2
+question: RQ1
+scenarios: [T1, T2, T3, T4, T5, T6, T7]
+seeds: {start: 1000, n: 50}          # held-out test seeds / layouts
+methods:
+  - {name: C0,      controller: C0, predictor: P0, memory: M2, search: S1}
+  - {name: C1+P0,   controller: C1, predictor: P0, memory: M2, search: S1}
+  - {name: C1+P1,   controller: C1, predictor: P1, memory: M2, search: S1}
+  - {name: C1+P2,   controller: C1, predictor: P2, memory: M2, search: S1}

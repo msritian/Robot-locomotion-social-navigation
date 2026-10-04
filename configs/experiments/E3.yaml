@@ -1,0 +1,14 @@
+# E3 (RQ3): memory M0-M3 x search S0/S1, with C1 + P2.
+id: E3
+question: RQ3
+scenarios: [T3, T4, T5, T7]
+seeds: {start: 1000, n: 50}
+methods:
+  - {name: M0+S0, controller: C1, predictor: P2, memory: M0, search: S0}
+  - {name: M1+S0, controller: C1, predictor: P2, memory: M1, search: S0}
+  - {name: M2+S0, controller: C1, predictor: P2, memory: M2, search: S0}
+  - {name: M3+S0, controller: C1, predictor: P2, memory: M3, search: S0}
+  - {name: M0+S1, controller: C1, predictor: P2, memory: M0, search: S1}
+  - {name: M1+S1, controller: C1, predictor: P2, memory: M1, search: S1}
+  - {name: M2+S1, controller: C1, predictor: P2, memory: M2, search: S1}
+  - {name: M3+S1, controller: C1, predictor: P2, memory: M3, search: S1}

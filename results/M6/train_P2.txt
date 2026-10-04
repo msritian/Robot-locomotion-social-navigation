@@ -1,0 +1,21 @@
+P2 ep  0 loss 0.4560 val ADE@2s 0.1371 minADE 0.0920
+P2 ep  1 loss 0.4164 val ADE@2s 0.1383 minADE 0.0875
+P2 ep  2 loss 0.4087 val ADE@2s 0.1395 minADE 0.0887
+P2 ep  3 loss 0.4060 val ADE@2s 0.1374 minADE 0.0863
+P2 ep  4 loss 0.4017 val ADE@2s 0.1339 minADE 0.0854
+P2 ep  5 loss 0.3999 val ADE@2s 0.1341 minADE 0.0845
+P2 ep  6 loss 0.3967 val ADE@2s 0.1325 minADE 0.0850
+P2 ep  7 loss 0.3940 val ADE@2s 0.1302 minADE 0.0833
+P2 ep  8 loss 0.3933 val ADE@2s 0.1327 minADE 0.0825
+P2 ep  9 loss 0.3901 val ADE@2s 0.1363 minADE 0.0822
+P2 ep 10 loss 0.3904 val ADE@2s 0.1310 minADE 0.0820
+P2 ep 11 loss 0.3875 val ADE@2s 0.1317 minADE 0.0818
+P2 ep 12 loss 0.3882 val ADE@2s 0.1315 minADE 0.0834
+P2 ep 13 loss 0.3860 val ADE@2s 0.1311 minADE 0.0810
+P2 ep 14 loss 0.3845 val ADE@2s 0.1302 minADE 0.0812
+P2 ep 15 loss 0.3831 val ADE@2s 0.1289 minADE 0.0810
+P2 ep 16 loss 0.3815 val ADE@2s 0.1314 minADE 0.0806
+P2 ep 17 loss 0.3811 val ADE@2s 0.1307 minADE 0.0804
+P2 ep 18 loss 0.3803 val ADE@2s 0.1312 minADE 0.0805
+P2 ep 19 loss 0.3798 val ADE@2s 0.1299 minADE 0.0803
+saved /Users/Patron/Documents/Robot-locomotion-social-navigation/models/predictor_P2.pt (best val ADE@2s 0.1289) in 253s

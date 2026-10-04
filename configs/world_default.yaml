@@ -155,4 +155,4 @@ follow:
   distance: 1.5         # follow point: 1.5 m behind the target along its walking direction
   band: [1.0, 3.0]
   min_walk_speed: 0.15  # below this, "walking direction" = direction from robot to target
-  delta_s: 1.0          # C1 look-ahead (tuned on training seeds)
+  delta_s: 0.5          # C1 look-ahead, tuned on training seeds 0-29 of T1/T2/T7 (results/M7/tune_delta_train.csv)

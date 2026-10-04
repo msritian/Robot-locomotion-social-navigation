@@ -1,0 +1,14 @@
+# E5: robustness. Full system vs C0 at perception noise 0.5 / 1 / 2, and camera FOV 70 vs 90 deg.
+id: E5
+question: robustness
+scenarios: [T7]
+seeds: {start: 1000, n: 50}
+methods:
+  - {name: "C0 noise0.5",   controller: C0, predictor: P0, memory: M2, search: S1, noise_scale: 0.5}
+  - {name: "C0 noise1",     controller: C0, predictor: P0, memory: M2, search: S1, noise_scale: 1.0}
+  - {name: "C0 noise2",     controller: C0, predictor: P0, memory: M2, search: S1, noise_scale: 2.0}
+  - {name: "C0 fov70",      controller: C0, predictor: P0, memory: M2, search: S1, fov_deg: 70}
+  - {name: "full noise0.5", controller: C1, predictor: P2, memory: M2, search: S1, noise_scale: 0.5}
+  - {name: "full noise1",   controller: C1, predictor: P2, memory: M2, search: S1, noise_scale: 1.0}
+  - {name: "full noise2",   controller: C1, predictor: P2, memory: M2, search: S1, noise_scale: 2.0}
+  - {name: "full fov70",    controller: C1, predictor: P2, memory: M2, search: S1, fov_deg: 70}

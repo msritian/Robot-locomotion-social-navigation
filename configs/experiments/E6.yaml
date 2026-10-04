@@ -1,0 +1,9 @@
+# E6: headroom. Oracle perception (noise_scale 0) and true future positions used as the "prediction".
+id: E6
+question: headroom
+scenarios: [T1, T2, T3, T4, T5, T6, T7]
+seeds: {start: 1000, n: 50}
+methods:
+  - {name: "C0 oracle-perc",            controller: C0, predictor: P0, memory: M2, search: S1, noise_scale: 0.0}
+  - {name: "full oracle-perc",          controller: C1, predictor: P2, memory: M2, search: S1, noise_scale: 0.0}
+  - {name: "C1 oracle-perc+true-future", controller: C1, predictor: oracle, memory: M2, search: S1, noise_scale: 0.0}
