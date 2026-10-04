@@ -22,7 +22,7 @@ done_iters=${done_iters:-0}
 echo "[train_walker] $(date -Is) host=$(hostname) done_iters=$done_iters total=$TOTAL ckpt=${ckpt:-none}"
 nvidia-smi --query-gpu=name,memory.total --format=csv,noheader
 
-if [ "$done_iters" -lt "$((TOTAL - 1))" ]; then
+if [ "$done_iters" -lt "$((TOTAL - 2))" ]; then   # rsl_rl names its final checkpoint model_<TOTAL-2>.pt
   n=$(( TOTAL - 1 - done_iters < CHUNK ? TOTAL - 1 - done_iters : CHUNK ))
   extra=()
   if [ -n "${ckpt:-}" ]; then
@@ -41,7 +41,7 @@ if [ "$done_iters" -lt "$((TOTAL - 1))" ]; then
   done
   if [ "$rc" -ne 0 ]; then exit "$rc"; fi
   latest_after=$(ls -1 $LOGROOT/*/model_*.pt 2>/dev/null | awk -F'model_|\\.pt' '{print $(NF-1)}' | sort -n | tail -1)
-  if [ "${latest_after:-0}" -lt "$((TOTAL - 1))" ]; then
+  if [ "${latest_after:-0}" -lt "$((TOTAL - 2))" ]; then
     echo "[train_walker] checkpointing at iteration $latest_after (exit 85 -> HTCondor restarts the job)"
     exit 85
   fi
