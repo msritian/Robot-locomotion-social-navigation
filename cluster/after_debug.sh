@@ -4,8 +4,8 @@ source "$(dirname "$0")/common.sh"
 DBG=$1; POLL=300
 state() { rsh "s=\$(condor_q $1 -af JobStatus | head -1); [ -n \"\$s\" ] && echo \$s || echo done" 2>/dev/null || echo sshfail; }
 while true; do s=$(state $DBG); [ "$s" = sshfail ] && { echo "STOP: ssh lost"; exit 2; }; [ "$s" = 1 ] || [ "$s" = 2 ] || break; sleep $POLL; done
-out=$(rsh "grep -E 'FELL|Traceback|run_follow\] t=' ~/k1-follow/cluster/jobs/out/debug_follow_$DBG.out | tail -6")
-if echo "$out" | grep -qE "FELL|Traceback" || [ -z "$out" ]; then echo "STOP: debug run still failing:"; echo "$out"; exit 1; fi
+out=$(rsh "grep -E 'RESULT|Traceback' ~/k1-follow/cluster/jobs/out/debug_follow_$DBG.out | cut -c1-120")
+if ! echo "$out" | grep -q "\[C\] RESULT.*STOOD" || echo "$out" | grep -q Traceback; then echo "STOP: walker not standing in the full scene:"; echo "$out"; exit 1; fi
 JOBS=""
 sub() { JOBS="$JOBS $(rsh "cd ~/k1-follow/cluster && condor_submit $* | grep -oE 'cluster [0-9]+' | grep -oE '[0-9]+'")"; }
 sub MODE=showcase SCEN=T6 SEED0=1000 N=1 CROWD=6 IGS=none submit_isaac_eval.sub
