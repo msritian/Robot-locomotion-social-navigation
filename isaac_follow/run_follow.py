@@ -122,7 +122,7 @@ RATE = np.array([cfg["robot"]["acc_lin"], cfg["robot"]["acc_lin"], cfg["robot"][
 # ------------------------------------------------------------------ Isaac env
 realistic_people = bool(args.isaac_env)
 env_cfg = make_env_cfg(w.map, np.zeros((0, 2)) if realistic_people else w.people.pos, colors, cfg["robot"]["fov_deg"],
-                       video=args.video, interior_usda=interior_usda, env_usd=env_usd, env_offset=env_offset)
+                       video=args.video, interior_usda=interior_usda)
 x0, y0, yaw0 = w.robot.pose
 env_cfg.scene.robot.init_state.pos = (float(x0), float(y0), 0.57)
 env_cfg.scene.robot.init_state.rot = (float(np.cos(yaw0 / 2)), 0.0, 0.0, float(np.sin(yaw0 / 2)))
@@ -169,6 +169,9 @@ if realistic_people:
     from pxr import UsdGeom as _UG
     from isaac_follow.characters import CharacterCrowd
     _st = omni.usd.get_context().get_stage()
+    from isaac_follow.characters import add_visual_environment
+    n_rm = add_visual_environment(_st, env_usd, env_offset)
+    print(f"[run_follow] environment {args.isaac_env} added (visual only, {n_rm} physics schemas removed)", flush=True)
     gp = _st.GetPrimAtPath("/World/ground")
     if gp.IsValid():
         _UG.Imageable(gp).MakeInvisible()      # the environment provides the visible floor

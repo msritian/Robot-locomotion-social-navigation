@@ -82,3 +82,30 @@ class CharacterCrowd:
             a.GetTranslationsAttr().Set(clip["t"][k])
             a.GetRotationsAttr().Set(clip["r"][k])
             a.GetScalesAttr().Set(clip["s"][k])
+
+
+def add_visual_environment(stage, url, offset, prim_path="/World/Environment"):
+    """Reference a photoreal Isaac environment AFTER the simulation started and strip all physics schemas from it
+    (as session-layer edits), so PhysX never parses its ~700k collision triangles / rigid props."""
+    from pxr import UsdPhysics
+    root = UsdGeom.Xform.Define(stage, prim_path)
+    root.AddTranslateOp().Set(Gf.Vec3d(*offset))
+    root.GetPrim().GetReferences().AddReference(url)
+    stage.Load(root.GetPath())
+    n = 0
+    apis = (UsdPhysics.CollisionAPI, UsdPhysics.MeshCollisionAPI, UsdPhysics.RigidBodyAPI, UsdPhysics.MassAPI,
+            UsdPhysics.ArticulationRootAPI)
+    for prim in Usd.PrimRange(root.GetPrim(), Usd.TraverseInstanceProxies()):
+        if prim.IsInstanceProxy():
+            continue
+        for api in apis:
+            if prim.HasAPI(api):
+                prim.RemoveAPI(api)
+                n += 1
+        for name in ("physics:collisionEnabled", "physics:rigidBodyEnabled"):
+            a = prim.GetAttribute(name)
+            if a and a.IsValid():
+                a.Set(False)
+        if prim.IsInstance():               # instanced props: make the instance prim itself non-physical
+            prim.SetInstanceable(False)
+    return n
