@@ -115,8 +115,14 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
                 spawn=sim_utils.DistantLightCfg(intensity=2500.0, angle=1.0, color=(1.0, 0.97, 0.9)),
                 init_state=AssetBaseCfg.InitialStateCfg(rot=(0.92, 0.2, 0.2, 0.2)))
             if env_usd is not None:   # photoreal Isaac environment, shifted so world = Stage C map frame
+                # visual only: cooking colliders for the full photoreal scene (~700k triangles) stalled the
+                # simulation start for hours; the walker walks on the ground plane (aligned to the scene floor)
+                # and the brain's planner keeps it away from walls using the sliced map
                 self.scene.environment = AssetBaseCfg(prim_path="/World/Environment",
-                                                      spawn=sim_utils.UsdFileCfg(usd_path=env_usd),
+                                                      spawn=sim_utils.UsdFileCfg(
+                                                          usd_path=env_usd,
+                                                          collision_props=sim_utils.CollisionPropertiesCfg(
+                                                              collision_enabled=False)),
                                                       init_state=AssetBaseCfg.InitialStateCfg(pos=env_offset))
             if interior_usda is not None:
                 self.scene.interior = AssetBaseCfg(prim_path="/World/Interior",
