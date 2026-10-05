@@ -17,7 +17,9 @@ for sc in ${SCEN//,/ }; do
       [ "$MODE" = showcase ] && extra=(--video --seconds 75 --crowd "$CROWD")
       [ "$MODE" = plumb ] && extra=(--video --seconds 10 --crowd "$CROWD")
       [ "$SECS" != 0 ] && extra+=(--seconds "$SECS")
-      igs=(); [ "$scene" != none ] && igs=(--interiorgs "$scene" --scene_dir interiorgs)
+      igs=()
+      case "$scene" in none) ;; env:*) igs=(--isaac_env "${scene#env:}" --env_maps isaac_follow/env_maps) ;;
+                       *) igs=(--interiorgs "$scene" --scene_dir interiorgs) ;; esac
       echo "=== $sc scene=$scene seed $s $m $(date -Is)"
       PYTHONUNBUFFERED=1 /isaac-sim/python.sh -u isaac_follow/run_follow.py --headless --scenario "$sc" --seed "$s" --method "$m" \
           --policy "$POLICY" --out d_out $LIM "${extra[@]}" "${igs[@]}" 2>&1 | tee -a d_out/full_${sc}_${scene}_${s}_${m}.log \

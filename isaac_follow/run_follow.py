@@ -34,6 +34,7 @@ ap.add_argument("--interiorgs", default="", help="SAGE-3D scene id (e.g. 839962)
 ap.add_argument("--scene_dir", default="interiorgs", help="dir with <id>.usdz and <id>_collision.usd")
 ap.add_argument("--isaac_env", default="", help="office | hospital | warehouse: photoreal Isaac environment + animated people")
 ap.add_argument("--env_maps", default="env_maps", help="dir with <name>_map.npz from env_to_map.py")
+ap.add_argument("--search_patrol", type=int, default=1, help="1: after S1 gives up, patrol likely POIs (showcase)")
 ap.add_argument("--debug", action="store_true", help="print obs/actions/trunk height for the first policy steps")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
@@ -217,9 +218,11 @@ per = Perception(cfg, args.seed)
 if args.method == "full":
     from pf.eval.experiments import get_predictor
     brain = FollowerBrain(cfg, "C1", predictor=get_predictor("P2"), memory="M2", search="S1")
+    brain.search.patrol_pois = w.map.pois if args.search_patrol else None
 else:
     from pf.prediction.base import ConstantVelocity
     brain = FollowerBrain(cfg, "C0", predictor=ConstantVelocity(), memory="M2", search="S1")
+    brain.search.patrol_pois = w.map.pois if args.search_patrol else None
 
 obs, _ = env.reset()
 set_people(w.people.pos, w.people.heading)
@@ -309,7 +312,7 @@ for kb in range(n_brain):
         obs, _, _, _, _ = env.step(act)
         if args.video and (kb * SUB + s) % max(1, round(50 / args.fps)) == 0:
             rp, _ = robot_pose2d()
-            eye, tgt, eye_s = chase_eye_target(rp, eye_s)
+            eye, tgt, eye_s = chase_eye_target(rp, eye_s, grid=grid, people=w.people.pos)
             chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device, dtype=torch.float32),
                                                 torch.tensor([tgt], device=env.device, dtype=torch.float32))
             rp_now, _ = robot_pose2d()

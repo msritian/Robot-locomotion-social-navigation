@@ -13,12 +13,27 @@ from pf.perception.demo import odom_to_true
 from pf.world.render import OTHER_C, TARGET_C, TopDownRenderer
 
 
-def chase_eye_target(robot_pose, eye_s=None, back=3.0, up=1.5, alpha=0.08):
-    """Third-person chase camera 3 m behind and 1.5 m above the K1, exponentially smoothed."""
+def chase_eye_target(robot_pose, eye_s=None, grid=None, people=None, alpha=0.08):
+    """Third-person chase camera, nominally 3 m behind and 1.5 m above the K1 (Section 13.6). If a wall or a person
+    is in the way (checked on the 2D map), it moves closer and higher. Exponentially smoothed."""
     x, y, yaw = robot_pose
-    eye = np.array([x - back * np.cos(yaw), y - back * np.sin(yaw), up])
+    c, s = np.cos(yaw), np.sin(yaw)
+    choice = None
+    for back, up in ((3.0, 1.5), (2.5, 1.7), (2.0, 1.9), (1.5, 2.1), (1.0, 2.3), (0.6, 2.5)):
+        ex, ey = x - back * c, y - back * s
+        if grid is not None:
+            p = np.array([ex, ey])
+            if grid.clearance(p) < 0.3 or not grid.segment_free(np.array([x, y]), p, 0.2):
+                continue
+        if people is not None and len(people) and np.min(np.hypot(people[:, 0] - ex, people[:, 1] - ey)) < 0.6:
+            continue
+        choice = (ex, ey, up)
+        break
+    if choice is None:
+        choice = (x - 0.4 * c, y - 0.4 * s, 2.6)
+    eye = np.array(choice)
     eye_s = eye if eye_s is None else (1 - alpha) * eye_s + alpha * eye
-    tgt = [x + 1.0 * np.cos(yaw), y + 1.0 * np.sin(yaw), 0.6]
+    tgt = [x + 1.2 * c, y + 1.2 * s, 0.5]
     return eye_s.tolist(), tgt, eye_s
 
 

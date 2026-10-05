@@ -33,7 +33,9 @@ url = ISAAC_NUCLEUS_DIR.rsplit("/Isaac", 1)[0] + "/" + ENVS[args.name]
 print(f"[map] opening {url}", flush=True)
 ctx = omni.usd.get_context()
 ctx.open_stage(url)
-for _ in range(200):
+stage0 = ctx.get_stage()
+stage0.Load()                         # load all payloads
+for _ in range(600):
     app.update()
     if ctx.get_stage_loading_status()[2] == 0:
         break
@@ -43,7 +45,7 @@ up = UsdGeom.GetStageUpAxis(stage)
 print(f"[map] metersPerUnit {mpu} upAxis {up}", flush=True)
 xc = UsdGeom.XformCache()
 tris = []
-for prim in stage.Traverse():
+for prim in stage.Traverse(Usd.TraverseInstanceProxies()):   # include instanced props
     if prim.GetTypeName() != "Mesh" or not UsdGeom.Imageable(prim).ComputeVisibility() == "inherited":
         continue
     m = UsdGeom.Mesh(prim)

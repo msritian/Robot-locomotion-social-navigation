@@ -2,7 +2,7 @@
 universe = container
 container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
 executable = run_in_container.sh
-arguments = bash env_maps.sh
+arguments = bash env_maps.sh $(NAMES:office hospital warehouse)
 transfer_input_files = env_maps.sh, jobs/code.tar.gz
 transfer_output_files = env_maps.tar.gz
 transfer_output_remaps = "env_maps.tar.gz = jobs/out/env_maps_$(Cluster).tar.gz"

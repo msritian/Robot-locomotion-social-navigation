@@ -1,3 +1,3 @@
 #!/bin/bash
-# Part D plumbing test: zero policy, 10 s, InteriorGS 840025 (hotel lobby, collision-mesh rendering fallback).
-bash isaac_eval.sh zero plumb T5 1000 1 0 840025 10
+# 15 s warehouse test with walker v2 + animated characters (T8 crowd)
+bash isaac_eval.sh k1_walker.pt plumb T8 1000 1 0 env:warehouse 15

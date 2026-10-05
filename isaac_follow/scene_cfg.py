@@ -33,19 +33,22 @@ OTHER_SHIRTS = [(0.15, 0.35, 0.75), (0.20, 0.60, 0.30), (0.90, 0.75, 0.15), (0.4
                 (0.30, 0.65, 0.70), (0.55, 0.55, 0.55), (0.10, 0.20, 0.35)]
 
 
-def classify_rects(world_map):
-    """Split obstacle rects into walls and furniture. A rect is furniture if it is small and not part of the
-    connected wall mass that touches the map border."""
+def classify_rects(world_map, furniture_max_m2=3.0):
+    """Walls vs furniture: a rect belongs to a wall if its connected obstacle component touches the map border OR is
+    larger than furniture_max_m2 (e.g. the inner block of a corridor loop); small free-standing blobs are furniture."""
     from scipy import ndimage
     occ = world_map.grid.occ
-    lab, _ = ndimage.label(occ)
-    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     res = world_map.grid.res
+    lab, n = ndimage.label(occ)
+    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    area = ndimage.sum(occ, lab, index=np.arange(1, n + 1)) * res * res
     walls, furn = [], []
     for x0, y0, x1, y1 in world_map.obstacles:
         cy, cx = int(((y0 + y1) / 2) / res), int(((x0 + x1) / 2) / res)
         cy, cx = min(cy, occ.shape[0] - 1), min(cx, occ.shape[1] - 1)
-        (walls if lab[cy, cx] in border else furn).append((x0, y0, x1, y1))
+        k = lab[cy, cx]
+        is_wall = k in border or (k > 0 and area[k - 1] > furniture_max_m2)
+        (walls if is_wall else furn).append((x0, y0, x1, y1))
     return walls, furn
 
 

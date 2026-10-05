@@ -3,7 +3,7 @@ universe = container
 container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
 executable = run_in_container.sh
 arguments = bash plumb.sh
-transfer_input_files = plumb.sh, isaac_eval.sh, jobs/code.tar.gz, osdf:///chtc/staging/s/smittal39/k1-follow/interiorgs_v1.tar
+transfer_input_files = plumb.sh, isaac_eval.sh, jobs/code.tar.gz, jobs/k1_walker.pt
 transfer_output_files = d_out.tar.gz
 transfer_output_remaps = "d_out.tar.gz = jobs/out/d_out_plumb_$(Cluster).tar.gz"
 should_transfer_files = YES
