@@ -197,7 +197,6 @@ set_people(w.people.pos, w.people.heading)
 pose, _ = robot_pose2d()
 w.robot.reset(pose)
 # ------------------------------------------------------------------ video helpers
-frames = {"chase": [], "head": [], "top": []}
 if args.video:
     from isaac_follow.video import HeadOverlay, TopView, chase_eye_target
     chase_cam = env.scene["chase_cam"]
@@ -205,6 +204,12 @@ if args.video:
     top = TopView(w.map, cfg)
     overlay = HeadOverlay(cfg["robot"]["fov_deg"])
     eye_s = None
+    from isaac_follow.video import StreamingVideo
+    where = f"InteriorGS {args.interiorgs}" if args.interiorgs else "procedural scene"
+    title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
+             f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
+    sv = StreamingVideo(os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}"
+                                               f"{args.scenario}_{args.seed}_{args.method}"), args.fps, title)
 
 L = {k: [] for k in ("robot", "cmd", "target", "people", "sel_gt", "in_fov", "visible", "state", "collided",
                      "robot_person_d", "trunk_z", "head_ang_vel", "heading_target")}
@@ -277,10 +282,14 @@ for kb in range(n_brain):
             eye, tgt, eye_s = chase_eye_target(rp, eye_s)
             chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device, dtype=torch.float32),
                                                 torch.tensor([tgt], device=env.device, dtype=torch.float32))
-            frames["chase"].append(chase_cam.data.output["rgb"][0, ..., :3].cpu().numpy())
-            frames["head"].append(overlay.draw(head_cam.data.output["rgb"][0, ..., :3].cpu().numpy(), bobs, brain,
-                                               w.robot.odom, ti, cam_z))
-            frames["top"].append(top.draw(w, brain))
+            rp_now, _ = robot_pose2d()
+            sel = brain.selected["_gt_id"] if brain.selected is not None else None
+            status = ("following TARGET" if sel == ti else "WRONG PERSON" if sel is not None and sel >= 0
+                      else brain.state)
+            sv.add(chase_cam.data.output["rgb"][0, ..., :3].cpu().numpy(),
+                   overlay.draw(head_cam.data.output["rgb"][0, ..., :3].cpu().numpy(), bobs, brain, w.robot.odom, ti, cam_z),
+                   top.draw(w, brain), kb * DT_BRAIN + s * DT_POLICY,
+                   float(np.hypot(*(w.people.pos[ti] - rp_now[:2]))), status)
     pose_after, z_after = robot_pose2d()
     L["robot"].append(pose_after)
     L["cmd"].append(cmd.copy())
@@ -313,11 +322,7 @@ with open(os.path.join(args.out, f"metrics_{args.scenario}_{args.seed}_{args.met
 np.savez_compressed(os.path.join(args.out, f"log_{args.scenario}_{args.seed}_{args.method}.npz"),
                     **{k: v for k, v in log.items() if isinstance(v, np.ndarray) and v.dtype != object})
 if args.video:
-    from isaac_follow.video import compose
-    where = f"InteriorGS {args.interiorgs}" if args.interiorgs else "procedural scene"
-    title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
-             f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
-    compose(frames, log, args.fps, os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}{args.scenario}_{args.seed}_{args.method}"), title)
+    sv.close()
 import sys as _sys
 _sys.stdout.flush()
 os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes

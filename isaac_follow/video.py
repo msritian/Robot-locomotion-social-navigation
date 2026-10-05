@@ -130,3 +130,42 @@ def compose(frames, log, fps, out_prefix, title):
     paths["composite"] = f"{out_prefix}.mp4"
     print("videos:", paths)
     return paths
+
+
+class StreamingVideo:
+    """Writes the three views and the composite frame-by-frame (constant memory). Replaces buffering all frames,
+    which exceeded 32 GB for 75 s x 3 views at 1280x720."""
+
+    def __init__(self, out_prefix, fps, title):
+        self.prefix, self.fps, self.title = out_prefix, fps, title
+        kw = dict(fps=fps, codec="libx264", quality=8, macro_block_size=8)
+        self.w = {v: imageio.get_writer(f"{out_prefix}_{v}.mp4", **kw) for v in ("chase", "head", "top")}
+        self.comp = imageio.get_writer(f"{out_prefix}_composite_raw.mp4", **kw)
+        self.font, self.small = _font(28), _font(22)
+        self.n = 0
+
+    def add(self, chase, head, top, t, dist, status):
+        views = {"chase": chase, "head": head, "top": top}
+        for v, img in views.items():
+            self.w[v].append_data(np.asarray(img, dtype=np.uint8))
+        tiles = [np.asarray(Image.fromarray(np.asarray(views[v], dtype=np.uint8)).resize((640, 360)))
+                 for v in ("chase", "head", "top")]
+        row = np.concatenate(tiles, axis=1)
+        bar = Image.new("RGB", (row.shape[1], 70), (18, 18, 20))
+        d = ImageDraw.Draw(bar)
+        d.text((14, 8), self.title, fill=(255, 255, 255), font=self.font)
+        d.text((14, 42), f"t={t:5.1f}s   distance to target {dist:4.2f} m   {status}", fill=(255, 210, 0), font=self.small)
+        self.comp.append_data(np.concatenate([np.asarray(bar), row], axis=0))
+        self.n += 1
+
+    def close(self):
+        import imageio_ffmpeg
+        for wr in list(self.w.values()) + [self.comp]:
+            wr.close()
+        raw = f"{self.prefix}_composite_raw.mp4"
+        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-i", raw, "-r", "30",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", f"{self.prefix}.mp4"], check=False)
+        if os.path.exists(f"{self.prefix}.mp4"):
+            os.remove(raw)
+        print("videos:", {v: f"{self.prefix}_{v}.mp4" for v in self.w} | {"composite": f"{self.prefix}.mp4"},
+              f"frames={self.n}", flush=True)
