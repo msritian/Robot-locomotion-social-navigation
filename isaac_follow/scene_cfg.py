@@ -74,11 +74,11 @@ def _person(i, color, pos):
 
 
 def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False, width=1280, height=720,
-                 interior_usda=None):
+                 interior_usda=None, env_usd=None, env_offset=(0.0, 0.0, 0.0)):
     """people_pos: (N, 2) initial positions; people_colors: N shirt colors. Robot spawn is set by the caller.
     interior_usda: an assembled InteriorGS scene (splat + collision, isaac_follow.interiorgs_scene) used INSTEAD
     of the extruded box walls/furniture (Section 19.2)."""
-    walls, furn = classify_rects(world_map) if interior_usda is None else ([], [])
+    walls, furn = classify_rects(world_map) if (interior_usda is None and env_usd is None) else ([], [])
 
     @configclass
     class FollowEnvCfg(K1FlatEnvCfg_PLAY):
@@ -111,6 +111,10 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
                 prim_path="/World/sunLight",
                 spawn=sim_utils.DistantLightCfg(intensity=2500.0, angle=1.0, color=(1.0, 0.97, 0.9)),
                 init_state=AssetBaseCfg.InitialStateCfg(rot=(0.92, 0.2, 0.2, 0.2)))
+            if env_usd is not None:   # photoreal Isaac environment, shifted so world = Stage C map frame
+                self.scene.environment = AssetBaseCfg(prim_path="/World/Environment",
+                                                      spawn=sim_utils.UsdFileCfg(usd_path=env_usd),
+                                                      init_state=AssetBaseCfg.InitialStateCfg(pos=env_offset))
             if interior_usda is not None:
                 self.scene.interior = AssetBaseCfg(prim_path="/World/Interior",
                                                    spawn=sim_utils.UsdFileCfg(usd_path=interior_usda))

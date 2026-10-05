@@ -166,3 +166,27 @@ if __name__ == "__main__":
         fig.savefig(out / f"{sid}.png", dpi=90)
         plt.close(fig)
         print(sid, f"{m.width:.1f} x {m.height:.1f} m  walkable {m.params['walkable_m2']} m2  pois {len(m.pois)}", flush=True)
+
+
+def map_from_npz(path, name, cfg, n_pois=20):
+    """Stage C Map from an occupancy grid sliced from an Isaac environment (isaac_follow/env_to_map.py).
+    Map coordinates = world coordinates - origin (the environment is placed at -origin in Isaac)."""
+    d = np.load(path, allow_pickle=True)
+    occ, res = d["occ"].astype(bool), float(d["res"])
+    grid = Grid(occ, res)
+    walk = ~grid.inflated(cfg["people"]["plan_inflation"])
+    lab, n = ndimage.label(walk)
+    sizes = ndimage.sum(walk, lab, index=np.arange(1, n + 1))
+    main = int(np.argmax(sizes)) + 1
+    rng = np.random.default_rng(abs(hash(name)) % (2 ** 32))
+    iy, ix = np.nonzero(lab == main)
+    cand = np.stack([(ix + 0.5) * res, (iy + 0.5) * res], 1)
+    pois = []
+    for p in cand[rng.permutation(len(cand))]:
+        if all(np.hypot(*(p - q)) >= 3.0 for q in pois):
+            pois.append(p)
+        if len(pois) >= n_pois:
+            break
+    params = {"source": f"Isaac environment {name}", "walkable_m2": round(float(sizes[main - 1] * res * res), 1),
+              "frame": tuple(float(v) for v in d["origin"]), "floor_z": float(d["floor_z"]), "url": str(d["url"])}
+    return Map("isaac_env", 0, "test", grid, np.array(pois), ["open_area"] * len(pois), params, {})

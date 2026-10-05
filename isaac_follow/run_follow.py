@@ -32,6 +32,8 @@ ap.add_argument("--out", default="follow_out")
 ap.add_argument("--limits", default="", help="walker_response.yaml with measured command limits")
 ap.add_argument("--interiorgs", default="", help="SAGE-3D scene id (e.g. 839962): realistic scene instead of boxes")
 ap.add_argument("--scene_dir", default="interiorgs", help="dir with <id>.usdz and <id>_collision.usd")
+ap.add_argument("--isaac_env", default="", help="office | hospital | warehouse: photoreal Isaac environment + animated people")
+ap.add_argument("--env_maps", default="env_maps", help="dir with <name>_map.npz from env_to_map.py")
 ap.add_argument("--debug", action="store_true", help="print obs/actions/trunk height for the first policy steps")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
@@ -66,7 +68,16 @@ SUB = int(round(DT_BRAIN / DT_POLICY))
 
 # ------------------------------------------------------------------ 2D world (map, people, scenario)
 interior_usda = None
-if args.interiorgs:
+env_usd, env_offset = None, (0.0, 0.0, 0.0)
+if args.isaac_env:
+    from pf.eval.scenarios import build_on_map
+    from pf.world.interiorgs import map_from_npz
+    imap = map_from_npz(os.path.join(args.env_maps, f"{args.isaac_env}_map.npz"), args.isaac_env, cfg)
+    env_usd = imap.params["url"]
+    fx, fy = imap.params["frame"]
+    env_offset = (-fx, -fy, -imap.params["floor_z"])
+    w = build_on_map(cfg, imap, args.scenario, args.seed)
+elif args.interiorgs:
     from isaac_follow.interiorgs_scene import write_scene_usda
     from pf.eval.scenarios import build_on_map
     from pf.world.interiorgs import scene_to_map
@@ -108,13 +119,14 @@ HI = np.array([lim["vx"][1], lim["vy"][1], lim["wz"][1]])
 RATE = np.array([cfg["robot"]["acc_lin"], cfg["robot"]["acc_lin"], cfg["robot"]["acc_ang"]]) * DT_BRAIN * 2.0
 
 # ------------------------------------------------------------------ Isaac env
-env_cfg = make_env_cfg(w.map, w.people.pos, colors, cfg["robot"]["fov_deg"], video=args.video,
-                       interior_usda=interior_usda)
+realistic_people = bool(args.isaac_env)
+env_cfg = make_env_cfg(w.map, np.zeros((0, 2)) if realistic_people else w.people.pos, colors, cfg["robot"]["fov_deg"],
+                       video=args.video, interior_usda=interior_usda, env_usd=env_usd, env_offset=env_offset)
 x0, y0, yaw0 = w.robot.pose
 env_cfg.scene.robot.init_state.pos = (float(x0), float(y0), 0.57)
 env_cfg.scene.robot.init_state.rot = (float(np.cos(yaw0 / 2)), 0.0, 0.0, float(np.sin(yaw0 / 2)))
 # mannequin details (head + shirt) as extra kinematic visual objects
-for i in range(w.people.n):
+for i in range(0 if realistic_people else w.people.n):
     for part, shape, z in (("head", sim_utils.SphereCfg(radius=0.12), 1.55),
                            ("shirt", sim_utils.CylinderCfg(radius=0.215, height=0.45, axis="Z"), 0.95)):
         color = (0.85, 0.70, 0.58) if part == "head" else colors[i]
@@ -146,11 +158,28 @@ robot = env.scene["robot"]
 head_id = robot.find_bodies(HEAD_LINK)[0][0]
 cam_off = torch.tensor([HEAD_CAMERA_OFFSET], device=env.device)
 cmd_term = env.command_manager.get_term("base_velocity")
-people_objs = [(env.scene[f"person_{i:02d}"], env.scene[f"person_{i:02d}_head"], env.scene[f"person_{i:02d}_shirt"])
-               for i in range(w.people.n)]
+people_objs = [] if realistic_people else [
+    (env.scene[f"person_{i:02d}"], env.scene[f"person_{i:02d}_head"], env.scene[f"person_{i:02d}_shirt"])
+    for i in range(w.people.n)]
+crowd = None
+if realistic_people:
+    import omni.usd
+    from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+    from pxr import UsdGeom as _UG
+    from isaac_follow.characters import CharacterCrowd
+    _st = omni.usd.get_context().get_stage()
+    gp = _st.GetPrimAtPath("/World/ground")
+    if gp.IsValid():
+        _UG.Imageable(gp).MakeInvisible()      # the environment provides the visible floor
+    crowd = CharacterCrowd(_st, ISAAC_NUCLEUS_DIR.rsplit("/Isaac", 1)[0], w.people.n, ti,
+                           lookalike_ids=tuple(getattr(w, "lookalike_ids", [])), seed=args.seed)
+    print(f"[run_follow] {w.people.n} animated characters added", flush=True)
 
 
-def set_people(pos, heading):
+def set_people(pos, heading, speed=None):
+    if crowd is not None:
+        crowd.update(pos, heading, np.zeros(len(pos)) if speed is None else speed, DT_POLICY)
+        return
     for i, (body, head, shirt) in enumerate(people_objs):
         q = torch.tensor([[np.cos(heading[i] / 2), 0, 0, np.sin(heading[i] / 2)]], device=env.device, dtype=torch.float32)
         for obj, z in ((body, 0.7), (head, 1.55), (shirt, 0.95)):
@@ -205,10 +234,11 @@ if args.video:
     overlay = HeadOverlay(cfg["robot"]["fov_deg"])
     eye_s = None
     from isaac_follow.video import StreamingVideo
-    where = f"InteriorGS {args.interiorgs}" if args.interiorgs else "procedural scene"
+    where = (f"Isaac {args.isaac_env}" if args.isaac_env else f"InteriorGS {args.interiorgs}" if args.interiorgs
+             else "procedural scene")
     title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
              f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
-    sv = StreamingVideo(os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}"
+    sv = StreamingVideo(os.path.join(args.out, f"showcase_{(args.isaac_env + '_') if args.isaac_env else ('interiorgs_' if args.interiorgs else '')}"
                                                f"{args.scenario}_{args.seed}_{args.method}"), args.fps, title)
 
 L = {k: [] for k in ("robot", "cmd", "target", "people", "sel_gt", "in_fov", "visible", "state", "collided",
@@ -253,7 +283,7 @@ for kb in range(n_brain):
         a = (s + 1) / SUB
         hp = prev_pos + a * (w.people.pos - prev_pos)
         hh = prev_head + a * wrap(w.people.heading - prev_head)
-        set_people(hp, hh)
+        set_people(hp, hh, np.hypot(w.people.vel[:, 0], w.people.vel[:, 1]))
         cmd_term.set(cmd)
         with torch.no_grad():
             act = policy(obs["policy"])
