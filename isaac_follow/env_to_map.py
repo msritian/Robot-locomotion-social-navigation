@@ -76,7 +76,9 @@ _area = 0.5 * np.linalg.norm(_nn, axis=1)
 _h = (np.abs(_nn[:, 2]) > 0.95 * np.linalg.norm(_nn, axis=1) + 1e-12) & (zmax - zmin < 0.02) & (_area < 25.0)   # small tiles: indoor floors, not city blocks / skyline planes
 _zb = np.round(zmin[_h] / 0.05).astype(int)
 _u, _inv = np.unique(_zb, return_inverse=True)
-floor_z = float(_u[np.argmax(np.bincount(_inv, weights=_area[_h]))] * 0.05) if _h.any() else float(np.percentile(zmin, 5))
+_lw = np.bincount(_inv, weights=_area[_h]) if _h.any() else None
+# lowest level with substantial area (ceilings / roofs can have as much area as the floor)
+floor_z = float(_u[_lw >= 0.3 * _lw.max()].min() * 0.05) if _h.any() else float(np.percentile(zmin, 5))
 print(f"[map] floor_z by horizontal area: {floor_z:.3f}", flush=True)
 _w = np.bincount(_inv, weights=_area[_h]) if _h.any() else np.zeros(0)
 _up = np.bincount(_inv, weights=_area[_h] * (_nn[_h, 2] > 0)) if _h.any() else np.zeros(0)
