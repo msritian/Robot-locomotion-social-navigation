@@ -82,6 +82,14 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
     interior_usda: an assembled InteriorGS scene (splat + collision, isaac_follow.interiorgs_scene) used INSTEAD
     of the extruded box walls/furniture (Section 19.2)."""
     walls, furn = classify_rects(world_map) if (interior_usda is None and env_usd is None) else ([], [])
+    hidden = []
+    if env_usd is not None:
+        # photoreal scene is visual only -> invisible collision boxes from the sliced map (0.1 m, conservative)
+        from pf.world.grid import decompose_rects
+        occ, res, f = world_map.grid.occ, world_map.grid.res, 2
+        Hh, Ww = occ.shape[0] // f * f, occ.shape[1] // f * f
+        coarse = occ[:Hh, :Ww].reshape(Hh // f, f, Ww // f, f).any(axis=(1, 3))
+        hidden = [tuple(r) for r in decompose_rects(coarse, res * f)]
 
     @configclass
     class FollowEnvCfg(K1FlatEnvCfg_PLAY):
@@ -119,6 +127,12 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
                                                    spawn=sim_utils.UsdFileCfg(usd_path=interior_usda))
             for i, r in enumerate(walls):
                 setattr(self.scene, f"wall_{i:03d}", _box(i, r, WALL_H, WALL_C, "Wall"))
+            for i, (x0, y0, x1, y1) in enumerate(hidden):
+                setattr(self.scene, f"collider_{i:04d}", AssetBaseCfg(
+                    prim_path=f"/World/Colliders/C_{i:04d}",
+                    spawn=sim_utils.CuboidCfg(size=(x1 - x0, y1 - y0, 2.0), visible=False,
+                                              collision_props=sim_utils.CollisionPropertiesCfg()),
+                    init_state=AssetBaseCfg.InitialStateCfg(pos=((x0 + x1) / 2, (y0 + y1) / 2, 1.0))))
             for i, r in enumerate(furn):
                 setattr(self.scene, f"furn_{i:03d}", _box(i, r, FURNITURE_H, FURN_C, "Furniture"))
             for i, p in enumerate(people_pos):
