@@ -15,7 +15,7 @@ log = jobs/out/isaac_eval_$(Cluster).log
 output = jobs/out/isaac_eval_$(Cluster).out
 error = jobs/out/isaac_eval_$(Cluster).err
 stream_output = true
-requirements = (OpSysMajorVer >= 8)
+requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|cxiaogpu4000", Machine)
 request_gpus = 1
 gpus_minimum_capability = 7.5
 gpus_minimum_memory = 10GB

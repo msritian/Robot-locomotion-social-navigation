@@ -74,8 +74,15 @@ floor_z = np.percentile(zmin, 5)
 tris[..., 2] -= floor_z
 zmin, zmax = zmin - floor_z, zmax - floor_z
 res = args.res
-lo = tris[..., :2].reshape(-1, 2).min(0) - 0.5
-hi = tris[..., :2].reshape(-1, 2).max(0) + 0.5
+# map extent from the building's floor (outdoor props/terrain far away would blow up the grid)
+_n = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+_fl = (np.abs(_n[:, 2]) > 0.9 * np.linalg.norm(_n, axis=1)) & (zmax < 0.1) & (zmin > -0.3)
+_c = tris[_fl].mean(axis=1)[:, :2] if _fl.sum() > 10 else tris.mean(axis=1)[:, :2]
+lo = np.percentile(_c, 0.5, axis=0) - 2.0
+hi = np.percentile(_c, 99.5, axis=0) + 2.0
+_inside = np.all((tris[..., :2] >= lo) & (tris[..., :2] <= hi), axis=(1, 2))
+tris, zmin, zmax = tris[_inside], zmin[_inside], zmax[_inside]
+print(f"[map] extent from floor: {lo.round(1).tolist()} .. {hi.round(1).tolist()}, {_inside.sum()} triangles kept", flush=True)
 nx, ny = np.ceil((hi - lo) / res).astype(int)
 
 
