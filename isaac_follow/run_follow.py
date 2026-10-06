@@ -122,7 +122,8 @@ RATE = np.array([cfg["robot"]["acc_lin"], cfg["robot"]["acc_lin"], cfg["robot"][
 # ------------------------------------------------------------------ Isaac env
 realistic_people = bool(args.isaac_env)
 env_cfg = make_env_cfg(w.map, np.zeros((0, 2)) if realistic_people else w.people.pos, colors, cfg["robot"]["fov_deg"],
-                       video=args.video, interior_usda=interior_usda)
+                       video=args.video, interior_usda=interior_usda,
+                       env_usd=env_usd)   # env_usd only suppresses box extrusion; the scene is added after sim start
 x0, y0, yaw0 = w.robot.pose
 env_cfg.scene.robot.init_state.pos = (float(x0), float(y0), 0.57)
 env_cfg.scene.robot.init_state.rot = (float(np.cos(yaw0 / 2)), 0.0, 0.0, float(np.sin(yaw0 / 2)))
