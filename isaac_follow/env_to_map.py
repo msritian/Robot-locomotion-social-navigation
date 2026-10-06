@@ -70,7 +70,14 @@ for prim in stage.Traverse(Usd.TraverseInstanceProxies()):   # include instanced
 tris = np.concatenate(tris)
 print(f"[map] {len(tris)} triangles", flush=True)
 zmin, zmax = tris[..., 2].min(1), tris[..., 2].max(1)
-floor_z = np.percentile(zmin, 5)
+# floor height = the z with the most horizontal surface area (robust to basements / outdoor terrain below)
+_nn = np.cross(tris[:, 1] - tris[:, 0], tris[:, 2] - tris[:, 0])
+_area = 0.5 * np.linalg.norm(_nn, axis=1)
+_h = (np.abs(_nn[:, 2]) > 0.95 * np.linalg.norm(_nn, axis=1) + 1e-12) & (zmax - zmin < 0.02)
+_zb = np.round(zmin[_h] / 0.05).astype(int)
+_u, _inv = np.unique(_zb, return_inverse=True)
+floor_z = float(_u[np.argmax(np.bincount(_inv, weights=_area[_h]))] * 0.05) if _h.any() else float(np.percentile(zmin, 5))
+print(f"[map] floor_z by horizontal area: {floor_z:.3f}", flush=True)
 tris[..., 2] -= floor_z
 zmin, zmax = zmin - floor_z, zmax - floor_z
 res = args.res
