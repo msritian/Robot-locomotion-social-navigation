@@ -59,6 +59,9 @@ for prim in stage.Traverse(Usd.TraverseInstanceProxies()):   # include instanced
     pts = (pts @ M[:3, :3] + M[3, :3]) * mpu
     if up == "Y":
         pts = pts[:, [0, 2, 1]] * np.array([1, -1, 1])
+    if np.ptp(pts[:, 0]) > 120 or np.ptp(pts[:, 1]) > 120:   # skip ground planes / sky domes / outdoor terrain
+        print(f"[map] skipping huge mesh {prim.GetPath()} ({np.ptp(pts[:, 0]):.0f} x {np.ptp(pts[:, 1]):.0f} m)", flush=True)
+        continue
     cnt, idx = np.asarray(cnt), np.asarray(idx)
     starts = np.concatenate([[0], np.cumsum(cnt)[:-1]])
     t = [(idx[s], idx[s + k], idx[s + k + 1]) for s, c in zip(starts, cnt) for k in range(1, c - 1)]

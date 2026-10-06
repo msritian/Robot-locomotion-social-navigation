@@ -12,12 +12,12 @@ log = jobs/out/env_maps_$(Cluster).log
 output = jobs/out/env_maps_$(Cluster).out
 error = jobs/out/env_maps_$(Cluster).err
 stream_output = true
-requirements = (HasCHTCStaging == true)
+requirements = (OpSysMajorVer >= 8) && (Machine =!= "gpu053.chtc.wisc.edu") && (Machine =!= "cxiaogpu4000.chtc.wisc.edu")
 request_gpus = 1
 gpus_minimum_capability = 7.5
 gpus_minimum_memory = 10GB
-+WantGPULab = true
-+GPUJobLength = "short"
++WantFlocking = true
++WantGlidein = true
 request_cpus = 4
 request_memory = 16GB
 request_disk = 50GB
