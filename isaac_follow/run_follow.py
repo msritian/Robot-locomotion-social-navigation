@@ -173,9 +173,12 @@ if realistic_people:
     from isaac_follow.characters import add_visual_environment
     n_rm = add_visual_environment(_st, env_usd, env_offset)
     print(f"[run_follow] environment {args.isaac_env} added (visual only, {n_rm} physics schemas removed)", flush=True)
+    from pxr import Usd as _Usd
     gp = _st.GetPrimAtPath("/World/ground")
-    if gp.IsValid():
-        _UG.Imageable(gp).MakeInvisible()      # the environment provides the visible floor
+    if gp.IsValid():                          # the environment provides the visible floor: hide every ground visual
+        for _p in _Usd.PrimRange(gp):
+            if _p.IsA(_UG.Imageable):
+                _UG.Imageable(_p).MakeInvisible()
     crowd = CharacterCrowd(_st, ISAAC_NUCLEUS_DIR.rsplit("/Isaac", 1)[0], w.people.n, ti,
                            lookalike_ids=tuple(getattr(w, "lookalike_ids", [])), seed=args.seed)
     print(f"[run_follow] {w.people.n} animated characters added", flush=True)

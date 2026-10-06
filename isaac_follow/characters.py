@@ -11,14 +11,15 @@ from __future__ import annotations
 import numpy as np
 from pxr import Gf, Sdf, Usd, UsdGeom, UsdSkel, Vt
 
+# characters with baked retargeted clips (isaac_follow/retarget.py -> isaac_follow/anim/<name>_{walk,idle}.npz)
 CHARACTERS = ["F_Business_02", "M_Medical_01", "F_Medical_01", "male_adult_construction_01_new",
-              "female_adult_police_01_new", "male_adult_police_04", "male_adult_construction_05_new",
-              "female_adult_police_02", "male_adult_construction_03", "female_adult_police_03_new"]
+              "female_adult_police_01_new"]
 TARGET_CHARACTER = "F_Business_02"      # look-alikes use the same model
 WALK_CLIP = "Isaac/People/Animations/stand_walk_loop_in_place.skelanim.usd"
 IDLE_CLIP = "Isaac/People/Animations/stand_idle_loop.skelanim.usd"
 CLIP_SPEED = 1.08                         # m/s, from stand_walk_loop (2.89 m per 80 frames at 30 fps)
-YAW_OFFSET = -np.pi / 2                   # character model faces +y; our heading 0 = +x
+YAW_OFFSET = np.pi / 2                    # character model faces -y (checked in the warehouse render)
+ANIM_DIR = __import__("pathlib").Path(__file__).parent / "anim"
 
 
 def _load_clip(url):
@@ -41,10 +42,11 @@ class CharacterCrowd:
         self.stage = stage
         self.n = n
         rng = np.random.default_rng(seed)
-        self.walk = _load_clip(f"{base_url}/{WALK_CLIP}")
-        self.idle = _load_clip(f"{base_url}/{IDLE_CLIP}")
+        self.clips = {}
+        for c in CHARACTERS:
+            self.clips[c] = {k: self._baked(c, k) for k in ("walk", "idle")}
         self.phase = rng.uniform(0, 1, n)
-        self.xf, self.anim = [], []
+        self.xf, self.anim, self.names = [], [], []
         others = [c for c in CHARACTERS if c != TARGET_CHARACTER]
         for i in range(n):
             name = TARGET_CHARACTER if (i == target_index or i in lookalike_ids) else others[(i + seed) % len(others)]
@@ -55,7 +57,8 @@ class CharacterCrowd:
             char.GetReferences().AddReference(f"{base_url}/Isaac/People/Characters/{name}/{name}.usd")
             skel = next((p for p in Usd.PrimRange(char) if p.IsA(UsdSkel.Skeleton)), None)
             anim = UsdSkel.Animation.Define(stage, f"/World/People/P{i:02d}/Anim")
-            anim.CreateJointsAttr().Set(self.walk["joints"])
+            anim.CreateJointsAttr().Set(self.clips[name]["walk"]["joints"])
+            self.names.append(name)
             if skel is not None:
                 UsdSkel.BindingAPI.Apply(skel).CreateAnimationSourceRel().SetTargets([anim.GetPath()])
             self.anim.append(anim)
@@ -72,16 +75,25 @@ class CharacterCrowd:
             tr.Set(Gf.Vec3d(float(pos[i, 0]), float(pos[i, 1]), 0.0))
             rz.Set(float(np.rad2deg(heading[i] + YAW_OFFSET)))
             moving = speed[i] > 0.08
-            clip = self.walk if moving else self.idle
+            clip = self.clips[self.names[i]]["walk" if moving else "idle"]
             dur = clip["n"] / clip["fps"]
             rate = (speed[i] / CLIP_SPEED) if moving else 1.0
             self.phase[i] = (self.phase[i] + rate * dt / dur) % 1.0
             k = int(self.phase[i] * clip["n"]) % clip["n"]
             a = self.anim[i]
-            a.GetJointsAttr().Set(clip["joints"])
             a.GetTranslationsAttr().Set(clip["t"][k])
             a.GetRotationsAttr().Set(clip["r"][k])
             a.GetScalesAttr().Set(clip["s"][k])
+
+    @staticmethod
+    def _baked(name, kind):
+        d = np.load(ANIM_DIR / f"{name}_{kind}.npz")
+        n = len(d["t"])
+        return {"joints": Vt.TokenArray([str(j) for j in d["joints"]]), "n": n, "fps": float(d["fps"]),
+                "t": [Vt.Vec3fArray.FromNumpy(np.ascontiguousarray(d["t"][f])) for f in range(n)],
+                "r": [Vt.QuatfArray([Gf.Quatf(float(q[0]), Gf.Vec3f(float(q[1]), float(q[2]), float(q[3])))
+                                     for q in d["r"][f]]) for f in range(n)],
+                "s": [Vt.Vec3hArray.FromNumpy(np.ascontiguousarray(d["s"][f].astype(np.float16))) for f in range(n)]}
 
 
 def add_visual_environment(stage, url, offset, prim_path="/World/Environment"):
