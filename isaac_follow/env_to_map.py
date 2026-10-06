@@ -78,6 +78,13 @@ _zb = np.round(zmin[_h] / 0.05).astype(int)
 _u, _inv = np.unique(_zb, return_inverse=True)
 floor_z = float(_u[np.argmax(np.bincount(_inv, weights=_area[_h]))] * 0.05) if _h.any() else float(np.percentile(zmin, 5))
 print(f"[map] floor_z by horizontal area: {floor_z:.3f}", flush=True)
+_w = np.bincount(_inv, weights=_area[_h]) if _h.any() else np.zeros(0)
+_up = np.bincount(_inv, weights=_area[_h] * (_nn[_h, 2] > 0)) if _h.any() else np.zeros(0)
+for _k in np.argsort(-_w)[:10]:
+    _m = _h.copy(); _m[_h] = _inv == _k
+    _xy = tris[_m][..., :2].reshape(-1, 2)
+    print(f"[map]   level z={_u[_k] * 0.05:7.2f} area={_w[_k]:9.1f} up={_up[_k] / _w[_k]:.2f} n={_m.sum():6d} "
+          f"maxtri={_area[_m].max():8.1f} bbox={_xy.min(0).round(1).tolist()}..{_xy.max(0).round(1).tolist()}", flush=True)
 tris[..., 2] -= floor_z
 zmin, zmax = zmin - floor_z, zmax - floor_z
 res = args.res
