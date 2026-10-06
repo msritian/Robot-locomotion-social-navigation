@@ -12,7 +12,7 @@ log = jobs/out/walker_eval_$(Cluster).log
 output = jobs/out/walker_eval_$(Cluster).out
 error = jobs/out/walker_eval_$(Cluster).err
 stream_output = true
-requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|cxiaogpu4000", Machine)
+requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|cxiaogpu4000|dbrundagegpu5000", Machine)
 request_gpus = 1
 gpus_minimum_capability = 7.5
 gpus_minimum_memory = 10GB
