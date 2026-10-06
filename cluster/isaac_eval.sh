@@ -2,7 +2,7 @@
 # Stage D job body (inside the container): closed-loop K1 following in Isaac Sim.
 #   isaac_eval.sh <policy.pt|zero> <mode: quant|showcase|plumb> <scenarios (comma)> <seed0> <n_seeds> [crowd] [interiorgs ids (comma) or none] [seconds]
 set -uo pipefail
-POLICY=$1; MODE=$2; SCEN=$3; SEED0=$4; N=$5; CROWD=${6:-0}; IGS=${7:-none}; SECS=${8:-0}
+POLICY=$1; MODE=$2; SCEN=$3; SEED0=$4; N=$5; CROWD=${6:-0}; IGS=${7:-none}; SECS=${8:-0}; METHODS=${9:-C0,full}
 cd "$_CONDOR_SCRATCH_DIR" && tar -xzf code.tar.gz
 [ -f interiorgs_v1.tar ] && tar -xf interiorgs_v1.tar && rm -f interiorgs_v1.tar
 export PYTHONPATH="$PWD:$PWD/k1_walker:${PYTHONPATH:-}"
@@ -12,7 +12,7 @@ scenes=(none); [ "$IGS" != none ] && scenes=(${IGS//,/ })
 for sc in ${SCEN//,/ }; do
  for scene in "${scenes[@]}"; do
   for s in $(seq "$SEED0" $((SEED0 + N - 1))); do
-    for m in C0 full; do
+    for m in ${METHODS//,/ }; do
       extra=(--seconds 60)
       [ "$MODE" = showcase ] && extra=(--video --seconds 75 --crowd "$CROWD")
       [ "$MODE" = plumb ] && extra=(--video --seconds 10 --crowd "$CROWD")

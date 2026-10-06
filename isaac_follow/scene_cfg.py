@@ -86,10 +86,13 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
     if env_usd is not None:
         # photoreal scene is visual only -> invisible collision boxes from the sliced map (0.1 m, conservative)
         from pf.world.grid import decompose_rects
-        occ, res, f = world_map.grid.occ, world_map.grid.res, 2
-        Hh, Ww = occ.shape[0] // f * f, occ.shape[1] // f * f
-        coarse = occ[:Hh, :Ww].reshape(Hh // f, f, Ww // f, f).any(axis=(1, 3))
-        hidden = [tuple(r) for r in decompose_rects(coarse, res * f)]
+        occ, res = world_map.grid.occ, world_map.grid.res
+        for f in (2, 4):   # 0.1 m blocks; 0.2 m if that needs too many boxes (detailed office/hospital)
+            Hh, Ww = occ.shape[0] // f * f, occ.shape[1] // f * f
+            coarse = occ[:Hh, :Ww].reshape(Hh // f, f, Ww // f, f).any(axis=(1, 3))
+            hidden = [tuple(r) for r in decompose_rects(coarse, res * f)]
+            if len(hidden) <= 800:
+                break
 
     @configclass
     class FollowEnvCfg(K1FlatEnvCfg_PLAY):

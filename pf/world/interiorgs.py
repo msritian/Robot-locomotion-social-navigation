@@ -15,6 +15,7 @@ walkable points (>= 3 m apart) plus points in front of large objects (desk/count
 """
 from __future__ import annotations
 
+import zlib
 from pathlib import Path
 
 import numpy as np
@@ -178,7 +179,7 @@ def map_from_npz(path, name, cfg, n_pois=20):
     lab, n = ndimage.label(walk)
     sizes = ndimage.sum(walk, lab, index=np.arange(1, n + 1))
     main = int(np.argmax(sizes)) + 1
-    rng = np.random.default_rng(abs(hash(name)) % (2 ** 32))
+    rng = np.random.default_rng(zlib.crc32(name.encode()))   # stable across runs (hash() is salted)
     iy, ix = np.nonzero(lab == main)
     cand = np.stack([(ix + 0.5) * res, (iy + 0.5) * res], 1)
     pois = []

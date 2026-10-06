@@ -330,7 +330,7 @@ def build_on_map(cfg, world_map, kind, seed, n_others=None):
         hidden = [k for k in order if not w.grid.segment_free(rp, pois[k], 0.0) and np.hypot(*(pois[k] - tp)) > 3]
         order = hidden[:1] + [k for k in order if k not in hidden[:1]]
     route = [(pois[k], float(rng.uniform(1.0, 3.0))) for k in order[:4]]
-    w.people.agents[ti].route = route
+    w.people.agents[ti].route = list(route)   # _plan_next consumes it
     w.people.agents[ti].next_path = None
     w.people._plan_next(ti)
     if kind == "T4":
