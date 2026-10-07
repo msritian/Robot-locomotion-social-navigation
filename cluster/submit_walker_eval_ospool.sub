@@ -1,0 +1,24 @@
+# M9: walker evaluation (B.5/B.6) with demo video. Needs jobs/k1_walker.pt.
+universe = container
+container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/isaaclab-2.3.2-k1.sif
+executable = run_in_container.sh
+arguments = bash walker_eval.sh
+transfer_input_files = walker_eval.sh, jobs/code.tar.gz, jobs/k1_walker.pt
+transfer_output_files = walker_eval.tar.gz
+transfer_output_remaps = "walker_eval.tar.gz = jobs/out/walker_eval_$(Cluster).tar.gz"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+log = jobs/out/walker_eval_$(Cluster).log
+output = jobs/out/walker_eval_$(Cluster).out
+error = jobs/out/walker_eval_$(Cluster).err
+stream_output = true
+requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|cxiaogpu4000|dbrundagegpu5000", Machine)
+request_gpus = 1
+gpus_minimum_capability = 7.5
+gpus_minimum_memory = 10GB
++WantFlocking = true
++WantGlidein = true
+request_cpus = 4
+request_memory = 32GB
+request_disk = 30GB
+queue

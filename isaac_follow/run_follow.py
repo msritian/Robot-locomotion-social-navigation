@@ -32,6 +32,10 @@ ap.add_argument("--out", default="follow_out")
 ap.add_argument("--limits", default="", help="walker_response.yaml with measured command limits")
 ap.add_argument("--interiorgs", default="", help="SAGE-3D scene id (e.g. 839962): realistic scene instead of boxes")
 ap.add_argument("--scene_dir", default="interiorgs", help="dir with <id>.usdz and <id>_collision.usd")
+ap.add_argument("--isaac_env", default="", help="office | hospital | warehouse: photoreal Isaac environment + animated people")
+ap.add_argument("--env_maps", default="env_maps", help="dir with <name>_map.npz from env_to_map.py")
+ap.add_argument("--search_patrol", type=int, default=1, help="1: after S1 gives up, patrol likely POIs (showcase)")
+ap.add_argument("--debug", action="store_true", help="print obs/actions/trunk height for the first policy steps")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
 if args.video:
@@ -65,7 +69,16 @@ SUB = int(round(DT_BRAIN / DT_POLICY))
 
 # ------------------------------------------------------------------ 2D world (map, people, scenario)
 interior_usda = None
-if args.interiorgs:
+env_usd, env_offset = None, (0.0, 0.0, 0.0)
+if args.isaac_env:
+    from pf.eval.scenarios import build_on_map
+    from pf.world.interiorgs import map_from_npz
+    imap = map_from_npz(os.path.join(args.env_maps, f"{args.isaac_env}_map.npz"), args.isaac_env, cfg)
+    env_usd = imap.params["url"]
+    fx, fy = imap.params["frame"]
+    env_offset = (-fx, -fy, -imap.params["floor_z"])
+    w = build_on_map(cfg, imap, args.scenario, args.seed)
+elif args.interiorgs:
     from isaac_follow.interiorgs_scene import write_scene_usda
     from pf.eval.scenarios import build_on_map
     from pf.world.interiorgs import scene_to_map
@@ -107,13 +120,15 @@ HI = np.array([lim["vx"][1], lim["vy"][1], lim["wz"][1]])
 RATE = np.array([cfg["robot"]["acc_lin"], cfg["robot"]["acc_lin"], cfg["robot"]["acc_ang"]]) * DT_BRAIN * 2.0
 
 # ------------------------------------------------------------------ Isaac env
-env_cfg = make_env_cfg(w.map, w.people.pos, colors, cfg["robot"]["fov_deg"], video=args.video,
-                       interior_usda=interior_usda)
+realistic_people = bool(args.isaac_env)
+env_cfg = make_env_cfg(w.map, np.zeros((0, 2)) if realistic_people else w.people.pos, colors, cfg["robot"]["fov_deg"],
+                       video=args.video, interior_usda=interior_usda,
+                       env_usd=env_usd)   # env_usd only suppresses box extrusion; the scene is added after sim start
 x0, y0, yaw0 = w.robot.pose
 env_cfg.scene.robot.init_state.pos = (float(x0), float(y0), 0.57)
 env_cfg.scene.robot.init_state.rot = (float(np.cos(yaw0 / 2)), 0.0, 0.0, float(np.sin(yaw0 / 2)))
 # mannequin details (head + shirt) as extra kinematic visual objects
-for i in range(w.people.n):
+for i in range(0 if realistic_people else w.people.n):
     for part, shape, z in (("head", sim_utils.SphereCfg(radius=0.12), 1.55),
                            ("shirt", sim_utils.CylinderCfg(radius=0.215, height=0.45, axis="Z"), 0.95)):
         color = (0.85, 0.70, 0.58) if part == "head" else colors[i]
@@ -124,13 +139,17 @@ for i in range(w.people.n):
         setattr(env_cfg.scene, f"person_{i:02d}_{part}", RigidObjectCfg(
             prim_path=f"/World/Scene/Person_{i:02d}_{part}", spawn=shape,
             init_state=RigidObjectCfg.InitialStateCfg(pos=(w.people.pos[i, 0], w.people.pos[i, 1], z))))
+print(f"[run_follow] building Isaac env: {w.people.n} people, video={args.video}", flush=True)
 env = ManagerBasedRLEnv(cfg=env_cfg)
-if interior_usda is not None:   # the splat provides the visible floor; hide the physics ground plane's visuals
-    from pxr import UsdGeom
+print("[run_follow] env ready", flush=True)
+if interior_usda is not None:
+    # Gaussian-splat (NuRec) rendering needs isaacsim.replicator.nurec_utils, which the Isaac Lab container does not
+    # ship -> Section 19.6 fallback: render the InteriorGS collision meshes (real walls, floor, furniture) with
+    # simple materials instead of the splat.
+    from isaac_follow.interiorgs_scene import style_collision_meshes
     import omni.usd
-    gp = omni.usd.get_context().get_stage().GetPrimAtPath("/World/ground")
-    if gp.IsValid():
-        UsdGeom.Imageable(gp).MakeInvisible()
+    n_vis = style_collision_meshes(omni.usd.get_context().get_stage(), "/World/Interior/scene_collision")
+    print(f"[run_follow] InteriorGS: splat not renderable in this container; showing {n_vis} collision meshes", flush=True)
 if args.policy == "zero":      # plumbing tests only: legs hold the default pose (not a walker)
     n_act = env.action_manager.total_action_dim
     def policy(o):
@@ -141,11 +160,34 @@ robot = env.scene["robot"]
 head_id = robot.find_bodies(HEAD_LINK)[0][0]
 cam_off = torch.tensor([HEAD_CAMERA_OFFSET], device=env.device)
 cmd_term = env.command_manager.get_term("base_velocity")
-people_objs = [(env.scene[f"person_{i:02d}"], env.scene[f"person_{i:02d}_head"], env.scene[f"person_{i:02d}_shirt"])
-               for i in range(w.people.n)]
+people_objs = [] if realistic_people else [
+    (env.scene[f"person_{i:02d}"], env.scene[f"person_{i:02d}_head"], env.scene[f"person_{i:02d}_shirt"])
+    for i in range(w.people.n)]
+crowd = None
+if realistic_people:
+    import omni.usd
+    from isaaclab.utils.assets import ISAAC_NUCLEUS_DIR
+    from pxr import UsdGeom as _UG
+    from isaac_follow.characters import CharacterCrowd
+    _st = omni.usd.get_context().get_stage()
+    from isaac_follow.characters import add_visual_environment
+    n_rm = add_visual_environment(_st, env_usd, env_offset)
+    print(f"[run_follow] environment {args.isaac_env} added (visual only, {n_rm} physics schemas removed)", flush=True)
+    from pxr import Usd as _Usd
+    gp = _st.GetPrimAtPath("/World/ground")
+    if gp.IsValid():                          # the environment provides the visible floor: hide every ground visual
+        for _p in _Usd.PrimRange(gp):
+            if _p.IsA(_UG.Imageable):
+                _UG.Imageable(_p).MakeInvisible()
+    crowd = CharacterCrowd(_st, ISAAC_NUCLEUS_DIR.rsplit("/Isaac", 1)[0], w.people.n, ti,
+                           lookalike_ids=tuple(getattr(w, "lookalike_ids", [])), seed=args.seed)
+    print(f"[run_follow] {w.people.n} animated characters added", flush=True)
 
 
-def set_people(pos, heading):
+def set_people(pos, heading, speed=None):
+    if crowd is not None:
+        crowd.update(pos, heading, np.zeros(len(pos)) if speed is None else speed, DT_POLICY)
+        return
     for i, (body, head, shirt) in enumerate(people_objs):
         q = torch.tensor([[np.cos(heading[i] / 2), 0, 0, np.sin(heading[i] / 2)]], device=env.device, dtype=torch.float32)
         for obj, z in ((body, 0.7), (head, 1.55), (shirt, 0.95)):
@@ -183,16 +225,17 @@ per = Perception(cfg, args.seed)
 if args.method == "full":
     from pf.eval.experiments import get_predictor
     brain = FollowerBrain(cfg, "C1", predictor=get_predictor("P2"), memory="M2", search="S1")
+    brain.search.patrol_pois = w.map.pois if args.search_patrol else None
 else:
     from pf.prediction.base import ConstantVelocity
     brain = FollowerBrain(cfg, "C0", predictor=ConstantVelocity(), memory="M2", search="S1")
+    brain.search.patrol_pois = w.map.pois if args.search_patrol else None
 
 obs, _ = env.reset()
 set_people(w.people.pos, w.people.heading)
 pose, _ = robot_pose2d()
 w.robot.reset(pose)
 # ------------------------------------------------------------------ video helpers
-frames = {"chase": [], "head": [], "top": []}
 if args.video:
     from isaac_follow.video import HeadOverlay, TopView, chase_eye_target
     chase_cam = env.scene["chase_cam"]
@@ -200,6 +243,13 @@ if args.video:
     top = TopView(w.map, cfg)
     overlay = HeadOverlay(cfg["robot"]["fov_deg"])
     eye_s = None
+    from isaac_follow.video import StreamingVideo
+    where = (f"Isaac {args.isaac_env}" if args.isaac_env else f"InteriorGS {args.interiorgs}" if args.interiorgs
+             else "procedural scene")
+    title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
+             f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
+    sv = StreamingVideo(os.path.join(args.out, f"showcase_{(args.isaac_env + '_') if args.isaac_env else ('interiorgs_' if args.interiorgs else '')}"
+                                               f"{args.scenario}_{args.seed}_{args.method}"), args.fps, title)
 
 L = {k: [] for k in ("robot", "cmd", "target", "people", "sel_gt", "in_fov", "visible", "state", "collided",
                      "robot_person_d", "trunk_z", "head_ang_vel", "heading_target")}
@@ -243,20 +293,43 @@ for kb in range(n_brain):
         a = (s + 1) / SUB
         hp = prev_pos + a * (w.people.pos - prev_pos)
         hh = prev_head + a * wrap(w.people.heading - prev_head)
-        set_people(hp, hh)
+        set_people(hp, hh, np.hypot(w.people.vel[:, 0], w.people.vel[:, 1]))
         cmd_term.set(cmd)
         with torch.no_grad():
             act = policy(obs["policy"])
+        if args.debug and kb * SUB + s < 30:
+            o = obs["policy"][0]
+            # history layout: each term's 5-step history is contiguous (term-major); take the newest entry of each
+            dims = [3, 3, 3, 12, 12, 12, 2]
+            last, off = [], 0
+            for d in dims:
+                last.append(o[off + 4 * d: off + 5 * d])
+                off += 5 * d
+            last = torch.cat(last)
+            print(f"[debug] step {kb * SUB + s:2d} z={float(robot.data.root_pos_w[0, 2]):.3f} |a|max={float(act.abs().max()):.2f} "
+                  f"angvel={last[0:3].tolist()} grav={last[3:6].tolist()} cmd={last[6:9].tolist()} "
+                  f"qrel_max={float(last[9:21].abs().max()):.3f} qd_max={float(last[21:33].abs().max()):.3f} "
+                  f"phase={last[45:47].tolist()} obs_dim={o.numel()}", flush=True)
+            if kb * SUB + s == 0:
+                print("[debug] joint_names", robot.joint_names, flush=True)
+                print("[debug] joint_pos", [round(x, 3) for x in robot.data.joint_pos[0].tolist()], flush=True)
+                print("[debug] default ", [round(x, 3) for x in robot.data.default_joint_pos[0].tolist()], flush=True)
+                print("[debug] root_pos", robot.data.root_pos_w[0].tolist(), "root_quat", robot.data.root_quat_w[0].tolist(), flush=True)
+                print("[debug] obs term order", env.observation_manager.active_terms["policy"], flush=True)
         obs, _, _, _, _ = env.step(act)
         if args.video and (kb * SUB + s) % max(1, round(50 / args.fps)) == 0:
             rp, _ = robot_pose2d()
-            eye, tgt, eye_s = chase_eye_target(rp, eye_s)
-            chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device),
-                                                torch.tensor([tgt], device=env.device))
-            frames["chase"].append(chase_cam.data.output["rgb"][0, ..., :3].cpu().numpy())
-            frames["head"].append(overlay.draw(head_cam.data.output["rgb"][0, ..., :3].cpu().numpy(), bobs, brain,
-                                               w.robot.odom, ti, cam_z))
-            frames["top"].append(top.draw(w, brain))
+            eye, tgt, eye_s = chase_eye_target(rp, eye_s, grid=grid, people=w.people.pos)
+            chase_cam.set_world_poses_from_view(torch.tensor([eye], device=env.device, dtype=torch.float32),
+                                                torch.tensor([tgt], device=env.device, dtype=torch.float32))
+            rp_now, _ = robot_pose2d()
+            sel = brain.selected["_gt_id"] if brain.selected is not None else None
+            status = ("following TARGET" if sel == ti else "WRONG PERSON" if sel is not None and sel >= 0
+                      else brain.state)
+            sv.add(chase_cam.data.output["rgb"][0, ..., :3].cpu().numpy(),
+                   overlay.draw(head_cam.data.output["rgb"][0, ..., :3].cpu().numpy(), bobs, brain, w.robot.odom, ti, cam_z),
+                   top.draw(w, brain), kb * DT_BRAIN + s * DT_POLICY,
+                   float(np.hypot(*(w.people.pos[ti] - rp_now[:2]))), status)
     pose_after, z_after = robot_pose2d()
     L["robot"].append(pose_after)
     L["cmd"].append(cmd.copy())
@@ -270,7 +343,7 @@ for kb in range(n_brain):
         fell = True
         print(f"[run_follow] K1 FELL at t={kb * DT_BRAIN:.1f}s")
         break
-    if kb % 50 == 0:
+    if kb % 10 == 0:
         print(f"[run_follow] t={kb * DT_BRAIN:5.1f}s state={brain.state:18s} cmd={np.round(cmd, 2)} "
               f"dist={np.hypot(*(w.people.pos[ti] - pose_after[:2])):.2f} wall={(time.time() - t0):.0f}s", flush=True)
 
@@ -289,10 +362,7 @@ with open(os.path.join(args.out, f"metrics_{args.scenario}_{args.seed}_{args.met
 np.savez_compressed(os.path.join(args.out, f"log_{args.scenario}_{args.seed}_{args.method}.npz"),
                     **{k: v for k, v in log.items() if isinstance(v, np.ndarray) and v.dtype != object})
 if args.video:
-    from isaac_follow.video import compose
-    where = f"InteriorGS {args.interiorgs}" if args.interiorgs else "procedural scene"
-    title = (f"{args.scenario} | {where} | {w.people.n - 1} other people | "
-             f"{'FULL system (C1+P2+M2+S1)' if args.method == 'full' else 'C0 reactive follower'} | walking K1 (our policy)")
-    compose(frames, log, args.fps, os.path.join(args.out, f"showcase_{'interiorgs_' if args.interiorgs else ''}{args.scenario}_{args.seed}_{args.method}"), title)
-env.close()
-app.close()
+    sv.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes

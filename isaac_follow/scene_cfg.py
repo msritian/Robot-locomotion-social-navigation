@@ -33,19 +33,22 @@ OTHER_SHIRTS = [(0.15, 0.35, 0.75), (0.20, 0.60, 0.30), (0.90, 0.75, 0.15), (0.4
                 (0.30, 0.65, 0.70), (0.55, 0.55, 0.55), (0.10, 0.20, 0.35)]
 
 
-def classify_rects(world_map):
-    """Split obstacle rects into walls and furniture. A rect is furniture if it is small and not part of the
-    connected wall mass that touches the map border."""
+def classify_rects(world_map, furniture_max_m2=3.0):
+    """Walls vs furniture: a rect belongs to a wall if its connected obstacle component touches the map border OR is
+    larger than furniture_max_m2 (e.g. the inner block of a corridor loop); small free-standing blobs are furniture."""
     from scipy import ndimage
     occ = world_map.grid.occ
-    lab, _ = ndimage.label(occ)
-    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
     res = world_map.grid.res
+    lab, n = ndimage.label(occ)
+    border = set(np.unique(np.concatenate([lab[0], lab[-1], lab[:, 0], lab[:, -1]]))) - {0}
+    area = ndimage.sum(occ, lab, index=np.arange(1, n + 1)) * res * res
     walls, furn = [], []
     for x0, y0, x1, y1 in world_map.obstacles:
         cy, cx = int(((y0 + y1) / 2) / res), int(((x0 + x1) / 2) / res)
         cy, cx = min(cy, occ.shape[0] - 1), min(cx, occ.shape[1] - 1)
-        (walls if lab[cy, cx] in border else furn).append((x0, y0, x1, y1))
+        k = lab[cy, cx]
+        is_wall = k in border or (k > 0 and area[k - 1] > furniture_max_m2)
+        (walls if is_wall else furn).append((x0, y0, x1, y1))
     return walls, furn
 
 
@@ -74,11 +77,22 @@ def _person(i, color, pos):
 
 
 def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False, width=1280, height=720,
-                 interior_usda=None):
+                 interior_usda=None, env_usd=None, env_offset=(0.0, 0.0, 0.0)):
     """people_pos: (N, 2) initial positions; people_colors: N shirt colors. Robot spawn is set by the caller.
     interior_usda: an assembled InteriorGS scene (splat + collision, isaac_follow.interiorgs_scene) used INSTEAD
     of the extruded box walls/furniture (Section 19.2)."""
-    walls, furn = classify_rects(world_map) if interior_usda is None else ([], [])
+    walls, furn = classify_rects(world_map) if (interior_usda is None and env_usd is None) else ([], [])
+    hidden = []
+    if env_usd is not None:
+        # photoreal scene is visual only -> invisible collision boxes from the sliced map (0.1 m, conservative)
+        from pf.world.grid import decompose_rects
+        occ, res = world_map.grid.occ, world_map.grid.res
+        for f in (2, 4):   # 0.1 m blocks; 0.2 m if that needs too many boxes (detailed office/hospital)
+            Hh, Ww = occ.shape[0] // f * f, occ.shape[1] // f * f
+            coarse = occ[:Hh, :Ww].reshape(Hh // f, f, Ww // f, f).any(axis=(1, 3))
+            hidden = [tuple(r) for r in decompose_rects(coarse, res * f)]
+            if len(hidden) <= 800:
+                break
 
     @configclass
     class FollowEnvCfg(K1FlatEnvCfg_PLAY):
@@ -89,10 +103,16 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
             self.episode_length_s = 10_000.0
             self.commands.base_velocity = ExternalVelocityCommandCfg()
             self.observations.policy.enable_corruption = False
-            for name in ("push_robot", "actuator_gains", "motor_strength", "add_base_mass", "reset_base",
-                         "reset_robot_joints"):
+            for name in ("push_robot", "actuator_gains", "motor_strength", "add_base_mass"):
                 if hasattr(self.events, name):
                     setattr(self.events, name, None)
+            # keep the reset events but without randomization: joints exactly at the walking default pose (without
+            # this they start at 0 = a pose never seen in training -> runaway actions), root exactly at the spawn
+            self.events.reset_robot_joints.params["position_range"] = (1.0, 1.0)
+            self.events.reset_robot_joints.params["velocity_range"] = (0.0, 0.0)
+            self.events.reset_base.params = {
+                "pose_range": {k: (0.0, 0.0) for k in ("x", "y", "yaw")},
+                "velocity_range": {k: (0.0, 0.0) for k in ("x", "y", "z", "roll", "pitch", "yaw")}}
             self.terminations.time_out = None
             self.terminations.base_too_low = None
             self.terminations.base_contact = None
@@ -110,6 +130,12 @@ def make_env_cfg(world_map, people_pos, people_colors, fov_deg=90.0, video=False
                                                    spawn=sim_utils.UsdFileCfg(usd_path=interior_usda))
             for i, r in enumerate(walls):
                 setattr(self.scene, f"wall_{i:03d}", _box(i, r, WALL_H, WALL_C, "Wall"))
+            for i, (x0, y0, x1, y1) in enumerate(hidden):
+                setattr(self.scene, f"collider_{i:04d}", AssetBaseCfg(
+                    prim_path=f"/World/Colliders/C_{i:04d}",
+                    spawn=sim_utils.CuboidCfg(size=(x1 - x0, y1 - y0, 2.0), visible=False,
+                                              collision_props=sim_utils.CollisionPropertiesCfg()),
+                    init_state=AssetBaseCfg.InitialStateCfg(pos=((x0 + x1) / 2, (y0 + y1) / 2, 1.0))))
             for i, r in enumerate(furn):
                 setattr(self.scene, f"furn_{i:03d}", _box(i, r, FURNITURE_H, FURN_C, "Furniture"))
             for i, p in enumerate(people_pos):

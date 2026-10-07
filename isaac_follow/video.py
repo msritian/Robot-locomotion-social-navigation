@@ -13,12 +13,27 @@ from pf.perception.demo import odom_to_true
 from pf.world.render import OTHER_C, TARGET_C, TopDownRenderer
 
 
-def chase_eye_target(robot_pose, eye_s=None, back=3.0, up=1.5, alpha=0.08):
-    """Third-person chase camera 3 m behind and 1.5 m above the K1, exponentially smoothed."""
+def chase_eye_target(robot_pose, eye_s=None, grid=None, people=None, alpha=0.08):
+    """Third-person chase camera, nominally 3 m behind and 1.5 m above the K1 (Section 13.6). If a wall or a person
+    is in the way (checked on the 2D map), it moves closer and higher. Exponentially smoothed."""
     x, y, yaw = robot_pose
-    eye = np.array([x - back * np.cos(yaw), y - back * np.sin(yaw), up])
+    c, s = np.cos(yaw), np.sin(yaw)
+    choice = None
+    for back, up in ((3.0, 1.5), (2.5, 1.7), (2.0, 1.9), (1.5, 2.1), (1.0, 2.3), (0.6, 2.5)):
+        ex, ey = x - back * c, y - back * s
+        if grid is not None:
+            p = np.array([ex, ey])
+            if grid.clearance(p) < 0.3 or not grid.segment_free(np.array([x, y]), p, 0.2):
+                continue
+        if people is not None and len(people) and np.min(np.hypot(people[:, 0] - ex, people[:, 1] - ey)) < 0.6:
+            continue
+        choice = (ex, ey, up)
+        break
+    if choice is None:
+        choice = (x - 0.4 * c, y - 0.4 * s, 2.6)
+    eye = np.array(choice)
     eye_s = eye if eye_s is None else (1 - alpha) * eye_s + alpha * eye
-    tgt = [x + 1.0 * np.cos(yaw), y + 1.0 * np.sin(yaw), 0.6]
+    tgt = [x + 1.2 * c, y + 1.2 * s, 0.5]
     return eye_s.tolist(), tgt, eye_s
 
 
@@ -130,3 +145,42 @@ def compose(frames, log, fps, out_prefix, title):
     paths["composite"] = f"{out_prefix}.mp4"
     print("videos:", paths)
     return paths
+
+
+class StreamingVideo:
+    """Writes the three views and the composite frame-by-frame (constant memory). Replaces buffering all frames,
+    which exceeded 32 GB for 75 s x 3 views at 1280x720."""
+
+    def __init__(self, out_prefix, fps, title):
+        self.prefix, self.fps, self.title = out_prefix, fps, title
+        kw = dict(fps=fps, codec="libx264", quality=8, macro_block_size=8)
+        self.w = {v: imageio.get_writer(f"{out_prefix}_{v}.mp4", **kw) for v in ("chase", "head", "top")}
+        self.comp = imageio.get_writer(f"{out_prefix}_composite_raw.mp4", **kw)
+        self.font, self.small = _font(28), _font(22)
+        self.n = 0
+
+    def add(self, chase, head, top, t, dist, status):
+        views = {"chase": chase, "head": head, "top": top}
+        for v, img in views.items():
+            self.w[v].append_data(np.asarray(img, dtype=np.uint8))
+        tiles = [np.asarray(Image.fromarray(np.asarray(views[v], dtype=np.uint8)).resize((640, 360)))
+                 for v in ("chase", "head", "top")]
+        row = np.concatenate(tiles, axis=1)
+        bar = Image.new("RGB", (row.shape[1], 70), (18, 18, 20))
+        d = ImageDraw.Draw(bar)
+        d.text((14, 8), self.title, fill=(255, 255, 255), font=self.font)
+        d.text((14, 42), f"t={t:5.1f}s   distance to target {dist:4.2f} m   {status}", fill=(255, 210, 0), font=self.small)
+        self.comp.append_data(np.concatenate([np.asarray(bar), row], axis=0))
+        self.n += 1
+
+    def close(self):
+        import imageio_ffmpeg
+        for wr in list(self.w.values()) + [self.comp]:
+            wr.close()
+        raw = f"{self.prefix}_composite_raw.mp4"
+        subprocess.run([imageio_ffmpeg.get_ffmpeg_exe(), "-y", "-loglevel", "error", "-i", raw, "-r", "30",
+                        "-c:v", "libx264", "-pix_fmt", "yuv420p", f"{self.prefix}.mp4"], check=False)
+        if os.path.exists(f"{self.prefix}.mp4"):
+            os.remove(raw)
+        print("videos:", {v: f"{self.prefix}_{v}.mp4" for v in self.w} | {"composite": f"{self.prefix}.mp4"},
+              f"frames={self.n}", flush=True)

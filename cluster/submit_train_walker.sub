@@ -1,7 +1,7 @@
 # Stage B: K1 walker training (PROJECT_SPEC B.4) with HTCondor self-checkpointing (exit 85 -> restart+resume).
 # Submit from $REMOTE_WORKDIR/cluster after `cluster/pack_code.sh`:   condor_submit submit_train_walker.sub
 # Overrides: condor_submit TOTAL=4000 CHUNK=500 ENVS=4096 submit_train_walker.sub
-TOTAL = 4000
+TOTAL = 3000
 CHUNK = 500
 ENVS = 4096
 

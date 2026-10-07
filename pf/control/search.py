@@ -25,6 +25,7 @@ class Search:
         self.variant = variant
         self.dt = dt
         self.active = False
+        self.patrol_pois = None      # optional (showcase): odometry-frame POIs to patrol after giving up
 
     def start(self, odom, last_pos, last_seen_odom_yaw, forecast):
         """forecast: (modes (K, H, 2), probs (K,)) made at the last-seen time, or None."""
@@ -55,8 +56,20 @@ class Search:
             return self._scan(odom)
         # ---- S1
         if self.t > GIVE_UP:
-            self.phase = "give_up"
-            return ("cmd", np.zeros(3))
+            if self.patrol_pois is None or len(self.patrol_pois) == 0:
+                self.phase = "give_up"
+                return ("cmd", np.zeros(3))
+            # patrol (showcase extension, not in the spec's S1): visit POIs nearest to where the target was headed
+            if self.phase != "patrol":
+                ref = self.forecast[0][self.mode_order[0]][-1] if self.forecast is not None else self.last_pos
+                d = np.hypot(*(np.asarray(self.patrol_pois) - ref).T)
+                self.patrol_order = list(np.argsort(d))
+                self.patrol_i, self.phase, self.phase_t = 0, "patrol", 0.0
+            goal = np.asarray(self.patrol_pois[self.patrol_order[self.patrol_i % len(self.patrol_order)]])
+            if np.hypot(*(goal - odom[:2])) < 0.8 or self.phase_t > 15.0:
+                self.patrol_i += 1
+                self.phase_t = 0.0
+            return ("goal", goal, goal)
         if self.phase == "predict":
             modes, probs = self.forecast
             m = modes[self.mode_order[0]]

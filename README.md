@@ -6,9 +6,8 @@ The robot is a [Booster K1](https://www.boosterobotics.com/) (≈ 1 m tall, 22 j
 at a person; it keeps that person in view at a comfortable distance, weaves around furniture and other people,
 doesn't get fooled by someone in a similar shirt, and goes looking if the person disappears around a corner.
 
-> **Status (Oct 2026):** the following "brain" and all 2D experiments work. The K1 walking policy is training on
-> the UW–Madison CHTC GPU cluster. Next: the first videos of the walking K1 following a person in realistic,
-> crowded indoor scenes.
+> **Status (Oct 2026):** the walking K1 follows a target through crowded **photorealistic** warehouse and hospital
+> scenes with animated people (videos in `videos/photoreal/`).
 
 ---
 
@@ -78,9 +77,9 @@ than a simple one, probably because the target is slow (~0.35 m/s), so a 0.5 s l
 | Stage | What | Where it runs | State |
 |---|---|---|---|
 | **A** Cluster workflow | Sync code, build the Isaac Lab container, submit/fetch jobs | CHTC (HTCondor + Apptainer) | ✅ |
-| **B** K1 walking policy | Our own RL walker (Isaac Lab, PPO, 4096 robots in parallel), Booster's official gains and walking pose | CHTC GPU | 🔄 training |
+| **B** K1 walking policy | Our own RL walker (Isaac Lab, PPO, 4096 robots in parallel), Booster's official gains and walking pose | CHTC GPU | ✅ |
 | **C** Following brain | Fast 2D simulator, perception noise, tracker, memory, predictor, planner, 8 test scenarios | Laptop CPU | ✅ |
-| **D** Closed loop in Isaac Sim | Walking K1 + brain in 3D scenes with walking people; 3-view videos | CHTC GPU | 🔄 code ready |
+| **D** Closed loop in Isaac Sim | Walking K1 + brain in photoreal scenes with animated people; 3-view videos | CHTC / OSPool GPU | ✅ |
 | **E** Report | Tables, plots, videos | — | later |
 
 ### Test scenarios

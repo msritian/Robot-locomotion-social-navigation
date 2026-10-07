@@ -21,6 +21,8 @@ ap.add_argument("--policy", required=True)
 ap.add_argument("--out", default="walker_eval")
 ap.add_argument("--video", action="store_true")
 ap.add_argument("--robust_envs", type=int, default=20)
+ap.add_argument("--part", choices=["random", "steps"], required=True,
+                help="random: tracking + robustness (20 envs x 300 s, 60 s episodes); steps: B.6 step tests + video")
 AppLauncher.add_app_launcher_args(ap)
 args = ap.parse_args()
 if args.video:
@@ -58,46 +60,47 @@ def yaw_of(q):
     return torch.atan2(2 * (q[:, 0] * q[:, 3] + q[:, 1] * q[:, 2]), 1 - 2 * (q[:, 2] ** 2 + q[:, 3] ** 2))
 
 
-def run_random(n_envs, seconds):
-    """Random command sequences from the training sampler; returns per-step (cmd, vel_b) and fall flags."""
-    env = make_env(n_envs, episode_s=seconds + 5)
+def run_random(n_envs, seconds, episode_s):
+    """Random command sequences from the training sampler (no pushes). Episodes end at episode_s (auto reset);
+    terminations before that are falls. Returns per-step (cmd, vel_b, head |w|, alive mask) and the fall count."""
+    env = make_env(n_envs, episode_s=episode_s)
     u = env.unwrapped
     robot = u.scene["robot"]
     head = robot.find_bodies(HEAD_LINK)[0][0]
     obs, _ = env.reset()
-    fell = torch.zeros(n_envs, dtype=torch.bool, device=DEV)
+    falls = 0
     cmds, vels, head_w = [], [], []
     for _ in range(int(seconds / u.step_dt)):
         with torch.no_grad():
             obs, _, term, trunc, _ = env.step(policy(obs["policy"]))
-        fell |= term
+        falls += int(term.sum())
         c = u.command_manager.get_command("base_velocity")
         v = torch.cat([robot.data.root_lin_vel_b[:, :2], robot.data.root_ang_vel_b[:, 2:3]], 1)
         cmds.append(c.cpu().numpy().copy())
         vels.append(v.cpu().numpy())
         head_w.append(robot.data.body_ang_vel_w[:, head].norm(dim=1).cpu().numpy())
-    env.close()
-    return np.array(cmds), np.array(vels), np.array(head_w), fell.cpu().numpy()
+    return np.array(cmds), np.array(vels), np.array(head_w), falls
 
 
 res = {}
-# ---------------- B.5 (2) tracking over 5 minutes, 4 independent sequences
-C, V, HW, F = run_random(4, 300.0)
-lag = 10   # compare against the command 0.2 s earlier (the walker's response lag is part of B.6, not error)
-err = V[lag:] - C[:-lag]
-alive = ~F
-res["tracking_rms"] = {"vx": float(np.sqrt(np.mean(err[:, alive, 0] ** 2))),
-                       "vy": float(np.sqrt(np.mean(err[:, alive, 1] ** 2))),
-                       "wz": float(np.sqrt(np.mean(err[:, alive, 2] ** 2))),
-                       "lag_compensation_s": lag * 0.02, "envs_alive": int(alive.sum())}
-err0 = V - C
-res["tracking_rms_no_lag_comp"] = {k: float(np.sqrt(np.mean(err0[:, alive, i] ** 2))) for i, k in enumerate(("vx", "vy", "wz"))}
-res["tracking_pass"] = bool(res["tracking_rms"]["vx"] < 0.1 and res["tracking_rms"]["vy"] < 0.1 and res["tracking_rms"]["wz"] < 0.2)
-res["head_ang_vel_rms_walking"] = float(np.sqrt(np.mean(HW[:, alive] ** 2)))
-# ---------------- B.5 (3) robustness: 20 x 60 s
-_, _, _, F20 = run_random(args.robust_envs, 60.0)
-res["robustness"] = {"episodes": args.robust_envs, "falls": int(F20.sum()), "pass": bool(F20.sum() == 0)}
-print(json.dumps(res, indent=1), flush=True)
+if args.part == "random":
+    # B.5 (2)+(3): 20 robots x 5 min of random commands; 60 s episodes -> 100 robustness episodes
+    C, V, HW, falls = run_random(args.robust_envs, 300.0, 60.0)
+    lag = 10   # compare against the command 0.2 s earlier (the response lag itself is measured in B.6)
+    err = V[lag:] - C[:-lag]
+    res["tracking_rms"] = {k: float(np.sqrt(np.mean(err[..., i] ** 2))) for i, k in enumerate(("vx", "vy", "wz"))}
+    res["tracking_rms"]["lag_compensation_s"] = lag * 0.02
+    res["tracking_rms_no_lag_comp"] = {k: float(np.sqrt(np.mean((V - C)[..., i] ** 2))) for i, k in enumerate(("vx", "vy", "wz"))}
+    res["tracking_pass"] = bool(res["tracking_rms"]["vx"] < 0.1 and res["tracking_rms"]["vy"] < 0.1 and res["tracking_rms"]["wz"] < 0.2)
+    res["head_ang_vel_rms_walking"] = float(np.sqrt(np.mean(HW ** 2)))
+    n_ep = args.robust_envs * 5
+    res["robustness"] = {"episodes_60s": n_ep, "falls": falls, "pass": bool(falls == 0)}
+    print(json.dumps(res, indent=1), flush=True)
+    with open(os.path.join(args.out, "walker_eval_random.json"), "w") as f:
+        json.dump(res, f, indent=1)
+    import sys as _sys
+    _sys.stdout.flush()
+    os._exit(0)
 
 # ---------------- B.6 step tests with an external command
 env = make_env(1, external=True, video=args.video, episode_s=200.0)
@@ -183,7 +186,7 @@ spec = np.abs(np.fft.rfft(lat))
 freq = np.fft.rfftfreq(len(lat), 0.02)
 sway = {"lateral_amp_m": float((lat.max() - lat.min()) / 2), "yaw_amp_deg": float(np.rad2deg((hy.max() - hy.min()) / 2)),
         "freq_hz": float(freq[1:][np.argmax(spec[1:])]), "camera_height_m": float(cam[:, 2].mean() + np.mean([r["z"] for r in rec[i0:i0 + 200]]))}
-res.update({"steps": steps, "max_speeds": max_speeds, "head_sway": sway})
+res.update({"steps": steps, "max_speeds": max_speeds, "head_sway": sway})   # (part "steps")
 # ---------------- walker_response.yaml (measured robot model for Stage C, M10)
 tau = float(np.mean([steps[k]["tau_s"] for k in ("vx_0_to_0.4", "vy_0_to_0.2")]))
 resp = {
@@ -206,4 +209,6 @@ with open(os.path.join(args.out, "walker_eval.json"), "w") as f:
     json.dump(res, f, indent=1)
 np.savez_compressed(os.path.join(args.out, "step_tests.npz"), t=t, v=V, cmd=np.array([r["cmd"] for r in rec]))
 print(json.dumps(res, indent=1))
-app.close()
+import sys as _sys
+_sys.stdout.flush()
+os._exit(0)   # Kit shutdown can hang for hours on CHTC nodes
