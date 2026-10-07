@@ -10,7 +10,7 @@ look-alike, and searches when she disappears.
   gains and walking pose), trained on UW–Madison CHTC.
 - **Following brain:** turns what the camera sees into *numbers about people*, remembers what the target looks like,
   predicts where she is going, and plans safe steps. Developed and tested in a fast 2D simulator.
-- **Showcase:** the two combined in Isaac Sim, in NVIDIA's photorealistic warehouse and hospital, with realistic
+- **Showcase:** the two combined in Isaac Sim, in NVIDIA's photorealistic warehouse, hospital and office, with realistic
   animated people (walk cycles retargeted onto the characters).
 
 ## Best videos
@@ -18,26 +18,28 @@ look-alike, and searches when she disappears.
 Each video shows three synchronized views: chase camera, the K1's own head camera (target boxed in red), and a top-down
 map with the predicted path. Each scene is shown for the **simple follower (C0)** and the **full system**.
 
-| Scene | Video (full system) | Compare (simple follower) |
-|---|---|---|
-| Warehouse aisles, crowded (T6) | `videos/photoreal/showcase_warehouse_T6_1000_full.mp4` | `..._C0.mp4` |
-| Warehouse floor, 15-person crowd (T8) | `videos/photoreal/showcase_warehouse_T8_1000_full.mp4` | `..._C0.mp4` |
-| Hospital, look-alike nearby (T4) | `videos/photoreal/showcase_hospital_T4_1000_full.mp4` | `..._C0.mp4` |
-| Hospital, target disappears (T5) | `videos/photoreal/showcase_hospital_T5_1000_full.mp4` (rendering) | `..._C0.mp4` |
+| Scene | Simple follower (C0): in view | Full system: in view | Videos |
+|---|---|---|---|
+| Office, crowd (T6) | 88% | **99%** | `videos/photoreal/showcase_office_T6_1000_{C0,full}.mp4` (in repo) |
+| Hospital, look-alike nearby (T4) | 84% | **96%** | `videos/photoreal/showcase_hospital_T4_1000_{C0,full}.mp4` (in repo) |
+| Office, target disappears (T5) | 100% | 100% | `showcase_office_T5_1000_*` |
+| Hospital, target disappears (T5) | **85%** | 58% | `showcase_hospital_T5_1000_*` |
+| Warehouse, dense crowd (T8) | **92%** | 86% | `showcase_warehouse_T8_1000_*` |
+| Warehouse aisles (T6) | rendering | 87% | `showcase_warehouse_T6_1000_*` |
 
-## Key numbers
+2-minute runs, one run per cell (demos, not statistics). In every run: **no falls, no wall/furniture hits, no
+wrong-person switches**; 0–3 light bumps with people. Only the two pairs marked "in repo" are committed (size); the
+rest are on the shared drive / cluster.
 
-1. **The walking K1 completed every photoreal run (6/6, 75 s each) without falling or touching anyone** in the full
-   system; target kept in view at 1–3 m **98%** (warehouse aisles) and **97%** (dense crowd) of the time vs.
-   85% / 92% for the simple follower.
-2. **Zero wrong-person switches** in all 16 Isaac runs. In 2D tests on held-out layouts, our appearance memory cut
-   wrong-person switches from **2.3 to 0.1 per episode** vs. following the tracker's ID; with a look-alike, 0.02.
-3. **Searching where the person was heading** recovered a lost target **75%** of the time vs. **40%** for
-   stop-and-scan.
-4. **Walker:** tracks speed commands closely (0.4 m/s commanded → 0.41 m/s, 0.16 s delay; 0.8 rad/s turn → 0.82;
-   stops in 0.3 s).
-5. **Predicting the target's path** with body/head cues cut 2 s prediction error from 0.23 m to 0.14 m (0.27 → 0.18 m
-   during turns).
+## Key numbers (2D simulator, ~50 random setups per scenario, layouts never seen in training)
+
+1. **Wrong-person switches: 2.3 → 0.1 per episode** with the gated appearance memory (vs trusting the tracker's ID).
+2. **Lost target found again: 40% → 75%** by searching where she was heading (vs stop-and-scan).
+3. **Path prediction error at 2 s: 39 cm → 14 cm** (constant velocity → GRU with body/head direction; 19 cm without
+   the body/head cues). During turns: 52 → 22 cm.
+4. **Robust to bad detections:** with 2× detection noise the full system keeps the target in view 74% vs 62%.
+5. **Overall following:** 76% → 77–78% in view (small gain); zero obstacle collisions.
+6. **Walker:** 0.4 m/s commanded → 0.41 m/s (0.16 s delay); 0.8 rad/s → 0.82 rad/s.
 
 ## What worked
 
