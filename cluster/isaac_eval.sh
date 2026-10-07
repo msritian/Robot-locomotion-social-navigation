@@ -22,9 +22,18 @@ for sc in ${SCEN//,/ }; do
                        *) igs=(--interiorgs "$scene" --scene_dir interiorgs) ;; esac
       echo "=== $sc scene=$scene seed $s $m $(date -Is)"
       for attempt in 1 2 3; do   # Kit sometimes segfaults at start-up on some nodes: retry
-      PYTHONUNBUFFERED=1 timeout 5400 /isaac-sim/python.sh -u isaac_follow/run_follow.py --headless --scenario "$sc" --seed "$s" --method "$m" \
-          --policy "$POLICY" --out d_out $LIM "${extra[@]}" "${igs[@]}" 2>&1 | tee -a d_out/full_${sc}_${scene}_${s}_${m}.log \
-          | grep --line-buffered -vE "Extensions config|^\s*$|\[Warning\]|carb.launcher|interpreter =|read(Stdout|Stderr)|onRead"
+      LOG=d_out/full_${sc}_${scene}_${s}_${m}.log
+      PYTHONUNBUFFERED=1 setsid /isaac-sim/python.sh -u isaac_follow/run_follow.py --headless --scenario "$sc" --seed "$s" --method "$m" \
+          --policy "$POLICY" --out d_out $LIM "${extra[@]}" "${igs[@]}" >> "$LOG" 2>&1 &
+      PID=$!; T0=$(date +%s); NOGPU=0
+      # watchdog: kill the whole process group on a hard time limit, or when the node has no usable renderer
+      # ("Graphics plugins not available" -> Kit hangs forever on those nodes)
+      while kill -0 $PID 2>/dev/null; do sleep 20
+        if grep -q "Graphics plugins not available" "$LOG"; then echo "[isaac_eval] no renderer on $(hostname)"; NOGPU=1; kill -9 -$PID; break; fi
+        [ $(( $(date +%s) - T0 )) -gt 5400 ] && { echo "[isaac_eval] time limit"; kill -9 -$PID; break; }
+      done; wait $PID 2>/dev/null
+      grep -E "^\[(follow|result|isaac)|Traceback|Error:" "$LOG" | grep -v "omni" | tail -5
+      [ $NOGPU = 1 ] && exit 1     # HTCondor retries on another machine
       tail -5 d_out/full_${sc}_${scene}_${s}_${m}.log | grep -q "Segmentation fault" || break
       echo "[isaac_eval] start-up crash, retry $attempt"; sleep 20
       done
