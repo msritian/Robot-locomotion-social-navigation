@@ -7,7 +7,7 @@ at a person; it keeps that person in view at a comfortable distance, weaves arou
 doesn't get fooled by someone in a similar shirt, and goes looking if the person disappears around a corner.
 
 > **Status (Oct 2026):** the walking K1 follows a target through crowded **photorealistic** warehouse and hospital
-> scenes with animated people (videos in `videos/photoreal/`; see [`SUMMARY_FOR_TEAM.md`](SUMMARY_FOR_TEAM.md)).
+> scenes with animated people (videos in `videos/photoreal/`).
 
 ---
 
