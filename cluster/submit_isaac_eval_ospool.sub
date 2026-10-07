@@ -15,10 +15,9 @@ log = jobs/out/isaac_eval_$(Cluster).log
 output = jobs/out/isaac_eval_$(Cluster).out
 error = jobs/out/isaac_eval_$(Cluster).err
 stream_output = true
-requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|gpu054|cxiaogpu4000|dbrundagegpu5000|ukamilovgpu5000|lli-chtcgpu6000|mrudolphgpu4001|btellman-jsullivangpu4000|^gpu0[27]$|^gpu0[27][.]", Machine)
+requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|gpu054|cxiaogpu4000|dbrundagegpu5000|ukamilovgpu5000|lli-chtcgpu6000|mrudolphgpu4001|btellman-jsullivangpu4000|^gpu0[27]$|^gpu0[27][.]|zliu-chtcgpu5000|mkhodakgpu4000", Machine) && (Machine =!= MachineAttrMachine1) && (Machine =!= MachineAttrMachine2)
 max_retries = 5
 job_machine_attrs = Machine
-requirements = $(requirements) && (TARGET.Machine =!= MY.MachineAttrMachine1)
 request_gpus = 1
 gpus_minimum_capability = 7.5
 gpus_minimum_memory = 10GB

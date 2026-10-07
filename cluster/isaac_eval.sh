@@ -33,7 +33,7 @@ for sc in ${SCEN//,/ }; do
         [ $(( $(date +%s) - T0 )) -gt 5400 ] && { echo "[isaac_eval] time limit"; kill -9 -$PID; break; }
       done; wait $PID 2>/dev/null
       grep -E "^\[(follow|result|isaac)|Traceback|Error:" "$LOG" | grep -v "omni" | tail -5
-      [ $NOGPU = 1 ] && exit 1     # HTCondor retries on another machine
+      [ $NOGPU = 1 ] && { tar -czf d_out.tar.gz d_out; exit 1; }    # HTCondor retries on another machine
       tail -5 d_out/full_${sc}_${scene}_${s}_${m}.log | grep -q "Segmentation fault" || break
       echo "[isaac_eval] start-up crash, retry $attempt"; sleep 20
       done
