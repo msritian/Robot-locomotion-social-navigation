@@ -1,0 +1,28 @@
+# EVT-Bench (MP3D episodes) chunks.   condor_submit AGENT=ours TASK=stt N=20 EVERY=1 submit_evt.sub
+#   AGENT=probe N=1 for the plumbing check. Chunk i of N runs episodes[i::N].
+universe = container
+container_image = osdf:///chtc/staging/s/smittal39/k1-follow/containers/evt-habitat.sif
+executable = evt_eval.sh
+arguments = $(AGENT:ours) $(TASK:stt) $(N:1) $(Process) $(EVERY:1) --variant $(VAR:base) $(EXTRA:)
+environment = "EVT_DEBUG=$(DEBUG:) EVT_ORACLE_ID=$(ORACLE:0) EVT_DUMP=$(DUMP:)"
+transfer_input_files = jobs/code.tar.gz, osdf:///chtc/staging/s/smittal39/k1-follow/evt/evt_data.tar$(MODELS:)
+# OmTrackVLA jobs add MODELS=", osdf:///chtc/staging/s/smittal39/k1-follow/evt/hf_models.tar, osdf:///chtc/staging/s/smittal39/k1-follow/evt/dinov3_model.tar"
+transfer_output_files = evt_out.tar.gz
+transfer_output_remaps = "evt_out.tar.gz = jobs/out/evt_$(AGENT:ours)_$(TASK:stt)_$(VAR:base)_o$(ORACLE:0)$(TAG:)_$(Cluster)_$(Process).tar.gz"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+log = jobs/out/evt_$(Cluster).log
+output = jobs/out/evt_$(Cluster)_$(Process).out
+error = jobs/out/evt_$(Cluster)_$(Process).err
+requirements = (OpSysMajorVer >= 8) && !regexp("gpu053|gpu054|cxiaogpu4000|dbrundagegpu5000|ukamilovgpu5000|lli-chtcgpu6000|mrudolphgpu4001|btellman-jsullivangpu4000|^gpu0[27]$|^gpu0[27][.]|zliu-chtcgpu5000|mkhodakgpu4000|ssilwalgpu4000|^gitter2003", Machine) && (Machine =!= MachineAttrMachine1) && (Machine =!= MachineAttrMachine2)
+max_retries = 5
+job_machine_attrs = Machine
+request_gpus = 1
+gpus_minimum_capability = 7.0
+gpus_minimum_memory = 8GB
++WantFlocking = true
++WantGlidein = true
+request_cpus = 4
+request_memory = 16GB
+request_disk = 30GB
+queue $(N:1)
