@@ -7,6 +7,8 @@ from __future__ import annotations
 
 import numpy as np
 from scipy import ndimage
+from scipy.sparse import coo_matrix
+from scipy.sparse.csgraph import dijkstra
 
 
 class LocalMap:
@@ -89,3 +91,39 @@ class LocalMap:
         ly = np.clip(iy - y0, 0, h - 1)
         lx = np.clip(ix - x0, 0, w - 1)
         return self._clear[ly, lx]
+
+    def cost_to_go(self, goal, radius):
+        """Path length (m) from every cell of the clearance window to `goal`, moving only through cells with clearance
+        >= radius (unknown space counts as free). Goals outside the window are reached via the nearest window cell
+        (plus the straight-line rest). Returns a function xy (..., 2) -> cost; unreachable = inf."""
+        clear = self._clear
+        h, w = clear.shape
+        y0, x0 = self._clear_origin
+        free = clear >= radius
+        gy, gx = self._idx(goal)
+        ly, lx = int(np.clip(gy - y0, 0, h - 1)), int(np.clip(gx - x0, 0, w - 1))
+        cell_xy = self.origin + (np.array([x0 + lx, y0 + ly]) + 0.5) * self.res
+        extra = float(np.hypot(*(np.asarray(goal) - cell_xy)))
+        if not free[ly, lx]:
+            fy, fx = np.nonzero(free)
+            if len(fy) == 0:
+                return lambda xy: np.full(np.shape(xy)[:-1], np.inf)
+            j = int(np.argmin((fy - ly) ** 2 + (fx - lx) ** 2))
+            extra += float(np.hypot(fy[j] - ly, fx[j] - lx)) * self.res
+            ly, lx = int(fy[j]), int(fx[j])
+        idx = np.arange(h * w).reshape(h, w)
+        rows, cols, wts = [], [], []
+        for dy, dx in ((0, 1), (1, 0), (1, 1), (1, -1)):
+            a = idx[max(0, -dy):h - max(0, dy) or h, max(0, -dx):w - max(0, dx) or w]     # cell
+            b = idx[max(0, dy):h + min(0, dy) or h, max(0, dx):w + min(0, dx) or w]       # its (dy, dx) neighbour
+            ok = free.ravel()[a.ravel()] & free.ravel()[b.ravel()]
+            rows.append(a.ravel()[ok]); cols.append(b.ravel()[ok])
+            wts.append(np.full(ok.sum(), self.res * np.hypot(dy, dx)))
+        r, c, wt = np.concatenate(rows), np.concatenate(cols), np.concatenate(wts)
+        g = coo_matrix((np.concatenate([wt, wt]), (np.concatenate([r, c]), np.concatenate([c, r]))), shape=(h * w, h * w)).tocsr()
+        dist = dijkstra(g, directed=False, indices=ly * w + lx).reshape(h, w) + extra
+
+        def f(xy):
+            iy, ix = self._idx(xy)
+            return dist[np.clip(iy - y0, 0, h - 1), np.clip(ix - x0, 0, w - 1)]
+        return f

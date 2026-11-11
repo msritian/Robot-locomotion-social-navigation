@@ -238,3 +238,7 @@ PROJECT_SPEC.md
 PROGRESS.md
 ASSUMPTIONS.md
 SUMMARY_FOR_TEAM.md
+
+# EVT-Bench raw outputs (15 GB, kept local); only the report is tracked
+results/evt/*
+!results/evt/EVT_REPORT.md

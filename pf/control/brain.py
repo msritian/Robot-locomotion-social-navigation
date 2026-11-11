@@ -39,7 +39,14 @@ class FollowerBrain:
     def _follow_point(self, pos, vel, robot_xy):
         d = self.fc["distance"]
         sp = np.hypot(*vel)
-        if sp >= self.fc["min_walk_speed"]:
+        approaching = sp >= self.fc["min_walk_speed"] and np.dot(vel, robot_xy - pos) > 0
+        if approaching and self.fc.get("give_way", False):
+            # target walks toward us: step out of its path (to the side we are already on), fall in behind once it passes
+            u = vel / sp
+            nrm = np.array([-u[1], u[0]])
+            side = 1.0 if np.dot(robot_xy - pos, nrm) >= 0 else -1.0
+            return pos + side * d * nrm
+        if sp >= self.fc["min_walk_speed"] and not (approaching and self.fc.get("hold_off_when_approached", False)):
             u = vel / sp
         else:
             u = pos - robot_xy
@@ -62,15 +69,18 @@ class FollowerBrain:
         return self.predictor.predict(self.hist.snapshot(), self.t)
 
     # ------------------------------------------------------------------ main
-    def step(self, obs: dict) -> np.ndarray:
+    def step(self, obs: dict, commit: bool = True) -> np.ndarray:
+        """commit=False: the caller sends its own command and calls self.dwa.commit(cmd) itself (hybrid agent)."""
         odom = obs["robot_odom"]
+        self.others, self.target_pv = [], None
         if self.dwa is None:
             self.dwa = DWAPlanner(self.cfg, odom[:2])
         self.dwa.observe(obs)
         self.t += self.dt
         if not self.memory.initialized:
             self.memory.init(obs)
-            self.dwa.commit(np.zeros(3))
+            if commit:
+                self.dwa.commit(np.zeros(3))
             return np.zeros(3)
 
         # expected target position for association: forecast made at the last-seen time, propagated
@@ -84,6 +94,7 @@ class FollowerBrain:
         sel_id = sel["track_id"] if sel is not None else None
         others = [(t["pos_world_est"], t["vel_world_est"]) for t in obs["tracks"]
                   if t["track_id"] != sel_id and t["time_since_seen_s"] <= 0.5]
+        self.others = others
 
         if sel is not None:
             if self.search.active:
@@ -102,6 +113,7 @@ class FollowerBrain:
                 goal = self._follow_point(p_pred, v_pred, odom[:2])
             self.goal = self._safe_goal(goal, pos)
             self.look = pos
+            self.target_pv = (pos, vel)
             self.state = "follow"
             cmd = self.dwa.plan(odom, self.goal, self.look, others, target=(pos, vel))
         elif not self.memory.lost:
@@ -122,5 +134,6 @@ class FollowerBrain:
             else:
                 _, self.goal, self.look = act
                 cmd = self.dwa.plan(odom, self.goal, self.look, others)
-        self.dwa.commit(cmd)
+        if commit:
+            self.dwa.commit(cmd)
         return cmd

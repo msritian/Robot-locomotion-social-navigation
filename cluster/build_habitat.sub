@@ -1,0 +1,21 @@
+# Batch build of the EVT-Bench Habitat image on a CHTC build node.   condor_submit build_habitat.sub
+universe = vanilla
++IsBuildJob = true
+requirements = (OpSysMajorVer =?= 9) && (HasCHTCStaging == true)
+
+executable = build_habitat.sh
+transfer_input_files =
+transfer_output_files = evt-habitat.sif, build_habitat_meta.txt
+transfer_output_remaps = "evt-habitat.sif = file:///staging/s/smittal39/k1-follow/containers/evt-habitat.sif; build_habitat_meta.txt = jobs/out/build_habitat_meta.txt"
+should_transfer_files = YES
+when_to_transfer_output = ON_EXIT
+
+log = jobs/out/build_habitat.log
+output = jobs/out/build_habitat.out
+error = jobs/out/build_habitat.err
+
+request_cpus = 8
+request_memory = 32GB
+request_disk = 80GB
+
+queue
